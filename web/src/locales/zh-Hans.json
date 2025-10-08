@@ -431,37 +431,5 @@
     "rename-success": "重命名成功",
     "rename-tag": "重命名",
     "rename-tip": "您的所有带有此标签的备忘录将被更新。"
-  },
-  "menu": {
-    "orders": {
-      "title": "订单列表与统计",
-      "from": "起",
-      "to": "止",
-      "quick": "快捷",
-      "today": "今日",
-      "last7": "近7天",
-      "last30": "近30天",
-      "clear": "清除",
-      "onlyCurrentMenu": "仅看所选菜单",
-      "menu": "菜单",
-      "all": "全部",
-      "exportDetail": "导出明细 CSV",
-      "exportSummary": "导出汇总 CSV",
-      "loading": "加载中...",
-      "loadMore": "加载更多",
-      "noOrders": "暂无订单",
-      "summaryTitle": "汇总（按菜品）",
-      "noData": "暂无数据",
-      "th": {
-        "time": "时间",
-        "menu": "菜单",
-        "items": "项数",
-        "totalQty": "总数量",
-        "amount": "金额",
-        "item": "菜品",
-        "qty": "数量",
-        "revenue": "金额"
-      }
-    }
   }
 }

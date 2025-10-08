@@ -445,37 +445,5 @@
     "select-visibility": "Visibility",
     "tags": "Tags",
     "upload-attachment": "Upload Attachment(s)"
-  },
-  "menu": {
-    "orders": {
-      "title": "Orders & Statistics",
-      "from": "From",
-      "to": "To",
-      "quick": "Quick",
-      "today": "Today",
-      "last7": "Last 7 days",
-      "last30": "Last 30 days",
-      "clear": "Clear",
-      "onlyCurrentMenu": "Only current menu",
-      "menu": "Menu",
-      "all": "All",
-      "exportDetail": "Export CSV",
-      "exportSummary": "Export Summary CSV",
-      "loading": "Loading...",
-      "loadMore": "Load More",
-      "noOrders": "No orders.",
-      "summaryTitle": "Summary (by Item)",
-      "noData": "No data.",
-      "th": {
-        "time": "Time",
-        "menu": "Menu",
-        "items": "Items",
-        "totalQty": "Total Qty",
-        "amount": "Amount",
-        "item": "Item",
-        "qty": "Qty",
-        "revenue": "Revenue"
-      }
-    }
   }
 }
