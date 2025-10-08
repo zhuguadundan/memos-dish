@@ -158,40 +158,39 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   return (
     <div className="border rounded-xl p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="font-medium">è®¢å•åˆ—è¡¨ä¸Žç»Ÿè®?/div>
+        <div className="font-medium">¶©µ¥ÁÐ±íÓëÍ³¼Æ/div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
-            <span>Ö¹</span>
-            <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
+            <span>Æð</span>`r`n            <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
             <span>Ö¹</span>
             <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} />
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <span>å¿«æ·</span>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>ä»Šæ—¥</Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>è¿?å¤?/Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>è¿?0å¤?/Button>
-            <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>æ¸…é™¤</Button>
+            <span>¿ì½Ý</span>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>½ñÈÕ</Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>½ü7Ìì/Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>½ü30Ìì/Button>
+            <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>Çå³ý</Button>
           </div>
           <label className="text-sm inline-flex items-center gap-1">
-            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> ä»…çœ‹æ‰€é€‰èœå?          </label>
+            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> ½ö¿´ËùÑ¡²Ëµ¥          </label>
           <div className="text-sm inline-flex items-center gap-2">
-            <span>èœå•</span>
+            <span>²Ëµ¥</span>
             <Select value={menuFilter} onValueChange={(v) => setMenuFilter(v)}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="å…¨éƒ¨" /></SelectTrigger>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="È«²¿" /></SelectTrigger>
               <SelectContent>
-                <SelectItem key={ALL_VALUE} value={ALL_VALUE}>å…¨éƒ¨</SelectItem>
+                <SelectItem key={ALL_VALUE} value={ALL_VALUE}>È«²¿</SelectItem>
                 {allMenuIds.map((id) => (
                   <SelectItem key={id} value={id}>{id}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <Button variant="outline" onClick={exportOrders}>å¯¼å‡ºæ˜Žç»† CSV</Button>
-          <Button variant="outline" onClick={exportAggregate}>å¯¼å‡ºæ±‡æ€?CSV</Button>
+          <Button variant="outline" onClick={exportOrders}>µ¼³öÃ÷Ï¸ CSV</Button>
+          <Button variant="outline" onClick={exportAggregate}>µ¼³ö»ã×Ü CSV</Button>
           {nextToken && (
             <Button variant="outline" disabled={loading} onClick={() => fetchPage(nextToken)}>
-              {loading ? "åŠ è½½ä¸?.." : "åŠ è½½æ›´å¤š"}
+              {loading ? "åŠ è½½ä¸?.." : "¼ÓÔØ¸ü¶à"}
             </Button>
           )}
         </div>
@@ -202,11 +201,11 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
         <table className="min-w-full divide-y divide-border">
           <thead>
             <tr>
-              <th className="px-3 py-2 text-left text-sm font-semibold">æ—¶é—´</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">èœå•</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">é¡¹æ•°</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">æ€»æ•°é‡?/th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">é‡‘é¢</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Ê±¼ä</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">²Ëµ¥</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">ÏîÊý</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">×ÜÊýÁ¿/th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">½ð¶î</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -234,23 +233,23 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
             {filtered.length === 0 && (
               <tr>
                 <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={5}>
-                  æš‚æ— è®¢å•å¤‡å¿˜å½•ï¼Œæˆ–æœªåŒ¹é…åˆ°æ ‡ç­?#orderã€?                </td>
+                  ÔÝÎÞ¶©µ¥±¸ÍüÂ¼£¬»òÎ´Æ¥Åäµ½±êÇ© #order¡£                </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* æ±‡æ€?*/}
+      {/* »ã×Ü*/}
       <div className="mt-2">
-        <div className="font-medium mb-1">æ±‡æ€»ï¼ˆæŒ‰èœå“ï¼‰</div>
+        <div className="font-medium mb-1">»ã×Ü£¨°´²ËÆ·£©</div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border">
             <thead>
               <tr>
-                <th className="px-3 py-2 text-left text-sm font-semibold">èœå“</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold">æ•°é‡</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold">é‡‘é¢</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">²ËÆ·</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">ÊýÁ¿</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">½ð¶î</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -264,7 +263,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
               {aggregate.length === 0 && (
                 <tr>
                   <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={3}>
-                    æš‚æ— æ•°æ®
+                    ÔÝÎÞÊý¾Ý
                   </td>
                 </tr>
               )}
@@ -275,6 +274,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     </div>
   );
 }
+
 
 
 
