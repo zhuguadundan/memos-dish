@@ -70,7 +70,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   };
 
   useEffect(() => {
-    // 初始拉取第一页并构建本地视图\n    fetchPage(undefined).then(() => rebuildFromStore());
+    // 锟斤拷始锟斤拷取锟斤拷一页锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷图\n    fetchPage(undefined).then(() => rebuildFromStore());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -158,22 +158,24 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   return (
     <div className="border rounded-xl p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="font-medium">订单列表与统计/div>
+        <div className="font-medium">订单列表与统计</div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
-            <span>起</span>`r`n            <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
+            <span>起</span>
+            <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
             <span>止</span>
             <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} />
           </div>
           <div className="flex items-center gap-2 text-sm">
             <span>快捷</span>
             <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>今日</Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>近7天/Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>近30天/Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>近7天</Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>近30天</Button>
             <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>清除</Button>
           </div>
           <label className="text-sm inline-flex items-center gap-1">
-            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> 仅看所选菜单          </label>
+            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> 仅看所选菜单
+          </label>
           <div className="text-sm inline-flex items-center gap-2">
             <span>菜单</span>
             <Select value={menuFilter} onValueChange={(v) => setMenuFilter(v)}>
@@ -190,7 +192,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
           <Button variant="outline" onClick={exportAggregate}>导出汇总 CSV</Button>
           {nextToken && (
             <Button variant="outline" disabled={loading} onClick={() => fetchPage(nextToken)}>
-              {loading ? "鍔犺浇涓?.." : "加载更多"}
+              {loading ? "加载中..." : "加载更多"}
             </Button>
           )}
         </div>
@@ -201,11 +203,11 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
         <table className="min-w-full divide-y divide-border">
           <thead>
             <tr>
-              <th className="px-3 py-2 text-left text-sm font-semibold">时间</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">菜单</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">项数</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">总数量/th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">金额</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">时锟斤拷</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">锟剿碉拷</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">锟斤拷锟斤拷</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">锟斤拷锟斤拷锟斤拷/th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">锟斤拷锟?/th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -233,23 +235,23 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
             {filtered.length === 0 && (
               <tr>
                 <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={5}>
-                  暂无订单备忘录，或未匹配到标签 #order。                </td>
+                  锟斤拷锟睫讹拷锟斤拷锟斤拷锟斤拷录锟斤拷锟斤拷未匹锟戒到锟斤拷签 #order锟斤拷                </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* 汇总*/}
+      {/* 锟斤拷锟斤拷*/}
       <div className="mt-2">
-        <div className="font-medium mb-1">汇总（按菜品）</div>
+        <div className="font-medium mb-1">锟斤拷锟杰ｏ拷锟斤拷锟斤拷品锟斤拷</div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border">
             <thead>
               <tr>
-                <th className="px-3 py-2 text-left text-sm font-semibold">菜品</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold">数量</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold">金额</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">锟斤拷品</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">锟斤拷锟斤拷</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">锟斤拷锟?/th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -263,7 +265,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
               {aggregate.length === 0 && (
                 <tr>
                   <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={3}>
-                    暂无数据
+                    锟斤拷锟斤拷锟斤拷锟斤拷
                   </td>
                 </tr>
               )}
@@ -274,6 +276,8 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     </div>
   );
 }
+
+
 
 
 
