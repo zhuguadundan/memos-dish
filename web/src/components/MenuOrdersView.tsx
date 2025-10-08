@@ -10,7 +10,7 @@ type ParsedOrder = {
   memo: Memo;
   menuId: string | null;
   items: ParsedOrderItem[];
-  amount?: number; // sum of qty*price if present
+  amount?: number;
   totalQty: number;
 };
 
@@ -22,7 +22,7 @@ function parseOrderContent(content: string): { menuId: string | null; items: Par
     if (m) menuId = m[1];
   }
   const items: ParsedOrderItem[] = [];
-  const itemRegex = /^\s*-\s*name:"([^"]+)"\s+qty:(\d+)(?:\s+price:(\d+(?:\.\d+)?))?/;
+  const itemRegex = /^\s*-\s*name:\"([^\"]+)\"\s+qty:(\d+)(?:\s+price:(\d+(?:\.\d+)?))?/;
   for (const l of lines) {
     const m = l.match(itemRegex);
     if (m) {
@@ -50,19 +50,29 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   const [dateEnd, setDateEnd] = useState<string>("");
   const [menuFilter, setMenuFilter] = useState<string>(ALL_VALUE);
 
+  const rebuildFromStore = () => {
+    const ms = memoStore.state.memos as Memo[];
+    const list: ParsedOrder[] = [];
+    for (const m of ms) {
+      if (!isOrderMemo(m)) continue;
+      const { menuId, items } = parseOrderContent(m.content || "");
+      const amount = items.reduce((s, it) => s + (it.price ? it.price * it.qty : 0), 0);
+      const totalQty = items.reduce((s, it) => s + it.qty, 0);
+      list.push({ memo: m, menuId, items, amount: amount || undefined, totalQty });
+    }
+    list.sort((a, b) => {
+      const ta = a.memo.createTime ? new Date(a.memo.createTime).getTime() : 0;
+      const tb = b.memo.createTime ? new Date(b.memo.createTime).getTime() : 0;
+      return tb - ta;
+    });
+    setOrders(list);
+  };
+
   const fetchPage = async (token?: string) => {
     setLoading(true);
     try {
       const { memos, nextPageToken } = (await memoStore.fetchMemos({ pageToken: token })) || { memos: [], nextPageToken: "" };
-      const newOrders: ParsedOrder[] = [];
-      for (const m of memos || []) {
-        if (!isOrderMemo(m)) continue;
-        const { menuId, items } = parseOrderContent(m.content || "");
-        const amount = items.reduce((s, it) => s + (it.price ? it.price * it.qty : 0), 0);
-        const totalQty = items.reduce((s, it) => s + it.qty, 0);
-        newOrders.push({ memo: m, menuId, items, amount: amount || undefined, totalQty });
-      }
-      setOrders((prev) => (token ? [...prev, ...newOrders] : newOrders));
+      // 合并 store 后再重建列表，避免重复解析
       setNextToken(nextPageToken || undefined);
     } finally {
       setLoading(false);
@@ -70,9 +80,14 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   };
 
   useEffect(() => {
-    // 閿熸枻鎷峰閿熸枻鎷峰彇閿熸枻鎷蜂竴椤甸敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰浘\n    fetchPage(undefined).then(() => rebuildFromStore());
+    fetchPage(undefined).then(() => rebuildFromStore());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    rebuildFromStore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memoStore.state.stateId]);
 
   const filtered = useMemo(() => {
     let cur = orders;
@@ -123,7 +138,6 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     setDateEnd(end.toISOString().slice(0, 10));
   };
 
-  // CSV 鐎电厧鍤?
   const toCsv = (rows: string[][]) => rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
   const downloadCsv = (name: string, csv: string) => {
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -158,46 +172,47 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   return (
     <div className="border rounded-xl p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="font-medium">璁㈠崟鍒楄〃涓庣粺璁?/div>
+        <div className="font-medium">Orders & Stats</div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
-            <span>璧?/span>
+            <span>From</span>
             <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
-            <span>姝?/span>
+            <span>To</span>
             <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} />
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <span>蹇嵎</span>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>浠婃棩</Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>杩?澶?/Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>杩?0澶?/Button>
-            <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>娓呴櫎</Button>
+            <span>Quick</span>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>Today</Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>Last 7d</Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>Last 30d</Button>
+            <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>Clear</Button>
           </div>
           <label className="text-sm inline-flex items-center gap-1">
-            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> 浠呯湅鎵€閫夎彍鍗?          </label>
+            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> Only current menu
+          </label>
           <div className="text-sm inline-flex items-center gap-2">
-            <span>鑿滃崟</span>
+            <span>Menu</span>
             <Select value={menuFilter} onValueChange={(v) => setMenuFilter(v)}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="鍏ㄩ儴" /></SelectTrigger>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="All" /></SelectTrigger>
               <SelectContent>
-                <SelectItem key={ALL_VALUE} value={ALL_VALUE}>鍏ㄩ儴</SelectItem>
+                <SelectItem key={ALL_VALUE} value={ALL_VALUE}>All</SelectItem>
                 {allMenuIds.map((id) => (
                   <SelectItem key={id} value={id}>{id}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <Button variant="outline" onClick={exportOrders}>瀵煎嚭鏄庣粏 CSV</Button>
-          <Button variant="outline" onClick={exportAggregate}>瀵煎嚭姹囨€?CSV</Button>
+          <Button variant="outline" onClick={exportOrders}>Export CSV</Button>
+          <Button variant="outline" onClick={exportAggregate}>Export Summary CSV</Button>
           {nextToken && (
             <Button variant="outline" disabled={loading} onClick={() => fetchPage(nextToken)}>
-              {loading ? "鍔犺浇涓?.." : "鍔犺浇鏇村"}
+              {loading ? "Loading..." : "Load More"}
             </Button>
           )}
         </div>
       </div>
 
-      {/* 閸掓銆?*/}
+      {/* Orders */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-border">
           <thead>
@@ -214,47 +229,40 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
               <tr key={o.memo.name}>
                 <td className="px-3 py-2 text-sm">
                   {o.memo.createTime ? (
-                    <Link
-                      className="hover:underline"
-                      to={`/memos/${o.memo.name.replace(/^memos\//, "")}`}
-                      target="_blank"
-                    >
+                    <Link className="hover:underline" to={`/memos/${o.memo.name.replace(/^memos\//, "")}`} target="_blank">
                       {new Date(o.memo.createTime).toLocaleString()}
                     </Link>
                   ) : (
                     ""
                   )}
                 </td>
-                <td className="px-3 py-2 text-sm">{o.menuId ?? "?"}</td>
+                <td className="px-3 py-2 text-sm">{o.menuId ?? ""}</td>
                 <td className="px-3 py-2 text-sm">{o.items.length}</td>
                 <td className="px-3 py-2 text-sm">{o.totalQty}</td>
                 <td className="px-3 py-2 text-sm">{o.amount != null ? o.amount.toFixed(2) : "-"}</td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {filteredByDate.length === 0 && (
               <tr>
-                <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={5}>
-                  閿熸枻鎷烽敓鐫鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹褰曢敓鏂ゆ嫹閿熸枻鎷锋湭鍖归敓鎴掑埌閿熸枻鎷风 #order閿熸枻鎷?               </td>
+                <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={5}>No orders.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* 閿熸枻鎷烽敓鏂ゆ嫹*/}
+      {/* Summary */}
       <div className="mt-2">
-        <div className="font-medium mb-1">閿熸枻鎷烽敓鏉帮綇鎷烽敓鏂ゆ嫹閿熸枻鎷峰搧閿熸枻鎷?/div>
+        <div className="font-medium mb-1">Summary (by Item)</div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border">
             <thead>
-            <tr>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Time</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Menu</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Items</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Total Qty</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Amount</th>
-            </tr>
-          </thead>
+              <tr>
+                <th className="px-3 py-2 text-left text-sm font-semibold">Item</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">Qty</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">Revenue</th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-border">
               {aggregate.map((row) => (
                 <tr key={row.name}>
@@ -265,9 +273,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
               ))}
               {aggregate.length === 0 && (
                 <tr>
-                  <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={3}>
-                    閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
-                  </td>
+                  <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={3}>No data.</td>
                 </tr>
               )}
             </tbody>
@@ -277,12 +283,4 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     </div>
   );
 }
-
-
-
-
-
-
-
-
 
