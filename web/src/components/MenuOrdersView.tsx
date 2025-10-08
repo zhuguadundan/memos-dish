@@ -70,7 +70,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   };
 
   useEffect(() => {
-    // ��ʼ��ȡ��һҳ������������ͼ\n    fetchPage(undefined).then(() => rebuildFromStore());
+    // 閿熸枻鎷峰閿熸枻鎷峰彇閿熸枻鎷蜂竴椤甸敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰浘\n    fetchPage(undefined).then(() => rebuildFromStore());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -123,7 +123,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     setDateEnd(end.toISOString().slice(0, 10));
   };
 
-  // CSV 导出
+  // CSV 鐎电厧鍤?
   const toCsv = (rows: string[][]) => rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
   const downloadCsv = (name: string, csv: string) => {
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -158,56 +158,55 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   return (
     <div className="border rounded-xl p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="font-medium">�����б���ͳ��</div>
+        <div className="font-medium">璁㈠崟鍒楄〃涓庣粺璁?/div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
-            <span>��</span>
+            <span>璧?/span>
             <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
-            <span>ֹ</span>
+            <span>姝?/span>
             <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} />
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <span>���</span>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>����</Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>��7��</Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>��30��</Button>
-            <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>���</Button>
+            <span>蹇嵎</span>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>浠婃棩</Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>杩?澶?/Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>杩?0澶?/Button>
+            <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>娓呴櫎</Button>
           </div>
           <label className="text-sm inline-flex items-center gap-1">
-            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> ������ѡ�˵�
-          </label>
+            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> 浠呯湅鎵€閫夎彍鍗?          </label>
           <div className="text-sm inline-flex items-center gap-2">
-            <span>�˵�</span>
+            <span>鑿滃崟</span>
             <Select value={menuFilter} onValueChange={(v) => setMenuFilter(v)}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="ȫ��" /></SelectTrigger>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="鍏ㄩ儴" /></SelectTrigger>
               <SelectContent>
-                <SelectItem key={ALL_VALUE} value={ALL_VALUE}>ȫ��</SelectItem>
+                <SelectItem key={ALL_VALUE} value={ALL_VALUE}>鍏ㄩ儴</SelectItem>
                 {allMenuIds.map((id) => (
                   <SelectItem key={id} value={id}>{id}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <Button variant="outline" onClick={exportOrders}>������ϸ CSV</Button>
-          <Button variant="outline" onClick={exportAggregate}>�������� CSV</Button>
+          <Button variant="outline" onClick={exportOrders}>瀵煎嚭鏄庣粏 CSV</Button>
+          <Button variant="outline" onClick={exportAggregate}>瀵煎嚭姹囨€?CSV</Button>
           {nextToken && (
             <Button variant="outline" disabled={loading} onClick={() => fetchPage(nextToken)}>
-              {loading ? "������..." : "���ظ���"}
+              {loading ? "鍔犺浇涓?.." : "鍔犺浇鏇村"}
             </Button>
           )}
         </div>
       </div>
 
-      {/* 列表 */}
+      {/* 閸掓銆?*/}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-border">
           <thead>
             <tr>
-              <th className="px-3 py-2 text-left text-sm font-semibold">ʱ��</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">�˵�</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">����</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">������/th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">���?/th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Time</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Menu</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Items</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Total Qty</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Amount</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -235,25 +234,27 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
             {filtered.length === 0 && (
               <tr>
                 <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={5}>
-                  ���޶�������¼����δƥ�䵽��ǩ #order��                </td>
+                  閿熸枻鎷烽敓鐫鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹褰曢敓鏂ゆ嫹閿熸枻鎷锋湭鍖归敓鎴掑埌閿熸枻鎷风 #order閿熸枻鎷?               </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* ����*/}
+      {/* 閿熸枻鎷烽敓鏂ゆ嫹*/}
       <div className="mt-2">
-        <div className="font-medium mb-1">���ܣ�����Ʒ��</div>
+        <div className="font-medium mb-1">閿熸枻鎷烽敓鏉帮綇鎷烽敓鏂ゆ嫹閿熸枻鎷峰搧閿熸枻鎷?/div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border">
             <thead>
-              <tr>
-                <th className="px-3 py-2 text-left text-sm font-semibold">��Ʒ</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold">����</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold">���?/th>
-              </tr>
-            </thead>
+            <tr>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Time</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Menu</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Items</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Total Qty</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Amount</th>
+            </tr>
+          </thead>
             <tbody className="divide-y divide-border">
               {aggregate.map((row) => (
                 <tr key={row.name}>
@@ -265,7 +266,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
               {aggregate.length === 0 && (
                 <tr>
                   <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={3}>
-                    ��������
+                    閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹
                   </td>
                 </tr>
               )}
@@ -276,6 +277,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     </div>
   );
 }
+
 
 
 
