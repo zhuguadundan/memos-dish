@@ -70,8 +70,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   };
 
   useEffect(() => {
-    // 初次加载第一页
-    fetchPage(undefined);
+    // ��ʼ��ȡ��һҳ������������ͼ\n    fetchPage(undefined).then(() => rebuildFromStore());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -159,24 +158,23 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   return (
     <div className="border rounded-xl p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="font-medium">订单列表与统计</div>
+        <div className="font-medium">订单列表与统�?/div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
-            <span>起</span>
+            <span>�?/span>
             <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
-            <span>止</span>
+            <span>�?/span>
             <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} />
           </div>
           <div className="flex items-center gap-2 text-sm">
             <span>快捷</span>
             <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>今日</Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>近7天</Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>近30天</Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>�?�?/Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>�?0�?/Button>
             <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>清除</Button>
           </div>
           <label className="text-sm inline-flex items-center gap-1">
-            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> 仅看所选菜单
-          </label>
+            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> 仅看所选菜�?          </label>
           <div className="text-sm inline-flex items-center gap-2">
             <span>菜单</span>
             <Select value={menuFilter} onValueChange={(v) => setMenuFilter(v)}>
@@ -190,10 +188,10 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
             </Select>
           </div>
           <Button variant="outline" onClick={exportOrders}>导出明细 CSV</Button>
-          <Button variant="outline" onClick={exportAggregate}>导出汇总 CSV</Button>
+          <Button variant="outline" onClick={exportAggregate}>导出汇�?CSV</Button>
           {nextToken && (
             <Button variant="outline" disabled={loading} onClick={() => fetchPage(nextToken)}>
-              {loading ? "加载中..." : "加载更多"}
+              {loading ? "加载�?.." : "加载更多"}
             </Button>
           )}
         </div>
@@ -207,7 +205,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
               <th className="px-3 py-2 text-left text-sm font-semibold">时间</th>
               <th className="px-3 py-2 text-left text-sm font-semibold">菜单</th>
               <th className="px-3 py-2 text-left text-sm font-semibold">项数</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">总数量</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">总数�?/th>
               <th className="px-3 py-2 text-left text-sm font-semibold">金额</th>
             </tr>
           </thead>
@@ -236,15 +234,14 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
             {filtered.length === 0 && (
               <tr>
                 <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={5}>
-                  暂无订单备忘录，或未匹配到标签 #order。
-                </td>
+                  暂无订单备忘录，或未匹配到标�?#order�?                </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* 汇总 */}
+      {/* 汇�?*/}
       <div className="mt-2">
         <div className="font-medium mb-1">汇总（按菜品）</div>
         <div className="overflow-x-auto">
@@ -278,3 +275,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     </div>
   );
 }
+
+
+
+
