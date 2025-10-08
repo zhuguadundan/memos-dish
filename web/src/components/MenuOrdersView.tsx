@@ -3,7 +3,7 @@ import memoStore from "@/store/memo";
 import { Memo } from "@/types/proto/api/v1/memo_service";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";\nimport { useTranslate } from "@/utils/i18n";
 
 type ParsedOrderItem = { name: string; qty: number; price?: number };
 type ParsedOrder = {
@@ -41,7 +41,7 @@ function isOrderMemo(m: Memo): boolean {
 
 const ALL_VALUE = "__all__";
 
-export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) {
+export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) {\n  const t = useTranslate();
   const [orders, setOrders] = useState<ParsedOrder[]>([]);
   const [nextToken, setNextToken] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -72,8 +72,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     setLoading(true);
     try {
       const { memos, nextPageToken } = (await memoStore.fetchMemos({ pageToken: token })) || { memos: [], nextPageToken: "" };
-      // 合并 store 后再重建列表，避免重复解析
-      setNextToken(nextPageToken || undefined);
+      // 合并 store 后再重建列表，避免重复解�?      setNextToken(nextPageToken || undefined);
     } finally {
       setLoading(false);
     }
@@ -172,41 +171,41 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   return (
     <div className="border rounded-xl p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="font-medium">Orders & Stats</div>
+        <div className="font-medium">{t("menu.orders.title")}</div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
-            <span>From</span>
+            <span>{t("menu.orders.from")}</span>
             <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
-            <span>To</span>
+            <span>{t("menu.orders.to")}</span>
             <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} />
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <span>Quick</span>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>Today</Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>Last 7d</Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>Last 30d</Button>
-            <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>Clear</Button>
+            <span>{t("menu.orders.quick")}</span>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>{t("menu.orders.today")}</Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>{t("menu.orders.last7")}</Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>{t("menu.orders.last30")}</Button>
+            <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>{t("menu.orders.clear")}</Button>
           </div>
           <label className="text-sm inline-flex items-center gap-1">
-            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> Only current menu
+            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> {t("menu.orders.onlyCurrentMenu")}
           </label>
           <div className="text-sm inline-flex items-center gap-2">
-            <span>Menu</span>
+            <span>{t("menu.orders.menu")}</span>
             <Select value={menuFilter} onValueChange={(v) => setMenuFilter(v)}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="All" /></SelectTrigger>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder={t("menu.orders.all")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem key={ALL_VALUE} value={ALL_VALUE}>All</SelectItem>
+                <SelectItem key={ALL_VALUE} value={ALL_VALUE}>{t("menu.orders.all")}</SelectItem>
                 {allMenuIds.map((id) => (
                   <SelectItem key={id} value={id}>{id}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <Button variant="outline" onClick={exportOrders}>Export CSV</Button>
-          <Button variant="outline" onClick={exportAggregate}>Export Summary CSV</Button>
+          <Button variant="outline" onClick={exportOrders}>{t("menu.orders.exportDetail")}</Button>
+          <Button variant="outline" onClick={exportAggregate}>{t("menu.orders.exportSummary")}</Button>
           {nextToken && (
             <Button variant="outline" disabled={loading} onClick={() => fetchPage(nextToken)}>
-              {loading ? "Loading..." : "Load More"}
+              {loading ? t("menu.orders.loading") : t("menu.orders.loadMore")}
             </Button>
           )}
         </div>
@@ -217,11 +216,11 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
         <table className="min-w-full divide-y divide-border">
           <thead>
             <tr>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Time</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Menu</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Items</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Total Qty</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Amount</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">{t("menu.orders.th.time")}</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">{t("menu.orders.menu")}</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">{t("menu.orders.th.items")}</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">{t("menu.orders.th.totalQty")}</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">{t("menu.orders.th.amount")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -244,7 +243,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
             ))}
             {filteredByDate.length === 0 && (
               <tr>
-                <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={5}>No orders.</td>
+                <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={5}>{t("menu.orders.noOrders")}</td>
               </tr>
             )}
           </tbody>
@@ -253,14 +252,14 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
 
       {/* Summary */}
       <div className="mt-2">
-        <div className="font-medium mb-1">Summary (by Item)</div>
+        <div className="font-medium mb-1">{t("menu.orders.summaryTitle")}</div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border">
             <thead>
               <tr>
-                <th className="px-3 py-2 text-left text-sm font-semibold">Item</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold">Qty</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold">Revenue</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">{t("menu.orders.th.item")}</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">{t("menu.orders.th.qty")}</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">{t("menu.orders.th.revenue")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -273,7 +272,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
               ))}
               {aggregate.length === 0 && (
                 <tr>
-                  <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={3}>No data.</td>
+                  <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={3}>{t("menu.orders.noData")}</td>
                 </tr>
               )}
             </tbody>
@@ -283,4 +282,6 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     </div>
   );
 }
+
+
 
