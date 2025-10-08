@@ -161,9 +161,9 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
         <div className="font-medium">订单列表与统�?/div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
-            <span>�?/span>
+            <span>ֹ</span>
             <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
-            <span>�?/span>
+            <span>ֹ</span>
             <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} />
           </div>
           <div className="flex items-center gap-2 text-sm">
@@ -275,6 +275,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     </div>
   );
 }
+
 
 
 
