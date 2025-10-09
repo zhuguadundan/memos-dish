@@ -4,6 +4,7 @@ import { Memo } from "@/types/proto/api/v1/memo_service";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
+import { toast } from "react-hot-toast";
 
 type ParsedOrderItem = { name: string; qty: number; price?: number };
 type ParsedOrder = {
@@ -22,11 +23,29 @@ function parseOrderContent(content: string): { menuId: string | null; items: Par
     if (m) menuId = m[1];
   }
   const items: ParsedOrderItem[] = [];
-  const itemRegex = /^\s*-\s*name:\"([^\"]+)\"\s+qty:(\d+)(?:\s+price:(\d+(?:\.\d+)?))?/;
+
+  // 支持两种格式:
+  // 1. 旧格式: - name:"菜名" qty:1 price:25
+  // 2. 新格式: - 菜名 × 1 × ¥25 = ¥25.00 或 - 菜名 × 1
+
+  const oldFormatRegex = /^\s*-\s*name:\"([^\"]+)\"\s+qty:(\d+)(?:\s+price:(\d+(?:\.\d+)?))?/;
+  const newFormatRegex = /^\s*-\s*(.+?)\s*×\s*(\d+)(?:\s*×\s*¥(\d+(?:\.\d+)?))?/;
+
   for (const l of lines) {
-    const m = l.match(itemRegex);
+    // 尝试旧格式
+    let m = l.match(oldFormatRegex);
     if (m) {
       const name = m[1];
+      const qty = Number(m[2]);
+      const price = m[3] ? Number(m[3]) : undefined;
+      items.push({ name, qty, price });
+      continue;
+    }
+
+    // 尝试新格式
+    m = l.match(newFormatRegex);
+    if (m) {
+      const name = m[1].trim();
       const qty = Number(m[2]);
       const price = m[3] ? Number(m[3]) : undefined;
       items.push({ name, qty, price });
@@ -169,6 +188,49 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     downloadCsv("订单汇总.csv", toCsv(rows));
   };
 
+  const clearTodayOrders = async () => {
+    if (!window.confirm("确定要删除今天的所有订单吗？此操作不可恢复！")) {
+      return;
+    }
+
+    try {
+      // 获取今天的开始和结束时间
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+      // 筛选出今天的订单
+      const todayOrders = orders.filter((o) => {
+        const createTime = o.memo.createTime ? new Date(o.memo.createTime).getTime() : 0;
+        return createTime >= startOfDay.getTime() && createTime <= endOfDay.getTime();
+      });
+
+      if (todayOrders.length === 0) {
+        toast.error("今天没有订单");
+        return;
+      }
+
+      // 删除所有今天的订单
+      let successCount = 0;
+      for (const order of todayOrders) {
+        try {
+          await memoStore.deleteMemo(order.memo.name);
+          successCount++;
+        } catch (err) {
+          console.error("删除订单失败:", order.memo.name, err);
+        }
+      }
+
+      toast.success(`已删除今天的 ${successCount} 个订单`);
+      // 刷新订单列表
+      await fetchPage(undefined);
+      rebuildFromStore();
+    } catch (err: any) {
+      console.error(err);
+      toast.error("删除失败: " + (err?.message || "未知错误"));
+    }
+  };
+
   return (
     <div className="border rounded-xl p-3 space-y-3">
       <div className="flex items-center justify-between">
@@ -186,6 +248,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
             <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>最近7天</Button>
             <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>最近30天</Button>
             <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>清除</Button>
+            <Button variant="destructive" size="sm" onClick={clearTodayOrders}>清除今天订单</Button>
           </div>
           <label className="text-sm inline-flex items-center gap-1">
             <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> 仅当前菜单

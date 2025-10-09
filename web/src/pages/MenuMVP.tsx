@@ -157,17 +157,36 @@ const MenuMVP = () => {
   const generateContent = () => {
     if (!selectedMenu) return "";
     const header = `#order #menu:${selectedMenu.id}`;
-    const lines: string[] = [header, "", "- items:"];
+    const lines: string[] = [header, ""];
+    lines.push(`📋 **菜单**: ${selectedMenu.name}`);
+    lines.push("");
+    lines.push("🍽️ **订单明细**:");
+
+    let totalAmount = 0;
+    let totalQty = 0;
+
     for (const it of selectedMenu.items) {
       const qty = Math.max(0, Number(qtyMap[it.id] || 0));
       if (qty > 0) {
-        const pricePart = it.price != null ? ` price:${it.price}` : "";
-        lines.push(`  - name:"${it.name}" qty:${qty}${pricePart}`);
+        totalQty += qty;
+        const pricePart = it.price != null ? ` × ¥${it.price} = ¥${(it.price * qty).toFixed(2)}` : "";
+        if (it.price != null) {
+          totalAmount += it.price * qty;
+        }
+        lines.push(`- ${it.name} × ${qty}${pricePart}`);
       }
     }
-    if (note.trim()) {
-      lines.push(`- note: ${note.trim()}`);
+
+    if (totalQty > 0) {
+      lines.push("");
+      lines.push(`📊 **汇总**: 共 ${totalQty} 件${totalAmount > 0 ? `，合计 ¥${totalAmount.toFixed(2)}` : ""}`);
     }
+
+    if (note.trim()) {
+      lines.push("");
+      lines.push(`💬 **备注**: ${note.trim()}`);
+    }
+
     return lines.join("\n");
   };
 
@@ -176,11 +195,19 @@ const MenuMVP = () => {
       toast.error("请先创建并选择菜单");
       return;
     }
-    const content = generateContent();
-    if (!/qty:\s*\d+/.test(content)) {
+
+    // 检查是否至少有一项有数量
+    const hasItems = selectedMenu.items.some((it) => {
+      const qty = Math.max(0, Number(qtyMap[it.id] || 0));
+      return qty > 0;
+    });
+
+    if (!hasItems) {
       toast.error("请为至少一项设置数量");
       return;
     }
+
+    const content = generateContent();
     try {
       await memoStore.createMemo({
         memo: {

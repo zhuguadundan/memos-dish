@@ -48,6 +48,11 @@ const MemoContent = observer((props: Props) => {
       return;
     }
 
+    // 禁用订单备忘录的折叠功能
+    if (memo?.content?.includes("#order")) {
+      return;
+    }
+
     if ((memoContentContainerRef.current as HTMLDivElement).getBoundingClientRect().height > MAX_DISPLAY_HEIGHT) {
       setShowCompactMode("ALL");
     }
