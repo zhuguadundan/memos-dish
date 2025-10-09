@@ -321,7 +321,7 @@ const MenuMVP = () => {
 
   return (
     <div className="w-full max-w-5xl mx-auto p-4 space-y-4">
-      <h2 className="text-lg font-semibold">菜单（MVP）</h2>
+      <h2 className="text-lg font-semibold">菜单</h2>
 
       <div className="grid md:grid-cols-3 gap-4">
         {/* 菜单列表 */}
@@ -442,12 +442,6 @@ const MenuMVP = () => {
                 <Button onClick={submitOrder}>生成订单备忘录</Button>
                 <Button variant="outline" onClick={() => navigator.clipboard.writeText(generateContent())}>复制内容预览</Button>
                 <div className="grow" />
-                <Button variant="outline" onClick={importMenusFromMemos}>
-                  <UploadIcon className="w-4 h-4 mr-1" /> 从备忘录导入菜单定义
-                </Button>
-                <Button variant="outline" onClick={exportMenusToMemo}>
-                  <DownloadIcon className="w-4 h-4 mr-1" /> 导出菜单定义到备忘录
-                </Button>
                 <Button variant="outline" onClick={() => setShowBulk((v) => !v)}>
                   <FilePlusIcon className="w-4 h-4 mr-1" /> 批量添加条目
                 </Button>

@@ -149,7 +149,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     URL.revokeObjectURL(url);
   };
   const exportOrders = () => {
-    const header = ["time", "menuId", "item", "qty", "price", "amount"];
+    const header = ["时间", "菜单ID", "菜品", "数量", "价格", "金额"];
     const rows: string[][] = [header];
     for (const o of filteredByDate) {
       const timeStr = o.memo.createTime ? new Date(o.memo.createTime).toLocaleString() : "";
@@ -158,55 +158,55 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
         rows.push([timeStr, o.menuId ?? "", it.name, String(it.qty), it.price != null ? String(it.price) : "", amt]);
       }
     }
-    downloadCsv("orders.csv", toCsv(rows));
+    downloadCsv("订单明细.csv", toCsv(rows));
   };
   const exportAggregate = () => {
-    const header = ["item", "qty", "revenue"];
+    const header = ["菜品", "数量", "营收"];
     const rows: string[][] = [header];
     for (const row of aggregate) {
       rows.push([row.name, String(row.qty), row.revenue ? row.revenue.toFixed(2) : ""]);
     }
-    downloadCsv("orders_aggregate.csv", toCsv(rows));
+    downloadCsv("订单汇总.csv", toCsv(rows));
   };
 
   return (
     <div className="border rounded-xl p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="font-medium">Orders & Stats</div>
+        <div className="font-medium">订单 & 统计</div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
-            <span>From</span>
+            <span>起始</span>
             <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
-            <span>To</span>
+            <span>结束</span>
             <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} />
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <span>Quick</span>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>Today</Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>Last 7d</Button>
-            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>Last 30d</Button>
-            <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>Clear</Button>
+            <span>快捷</span>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(1)}>今天</Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(7)}>最近7天</Button>
+            <Button variant="outline" size="sm" onClick={() => setPresetDays(30)}>最近30天</Button>
+            <Button variant="outline" size="sm" onClick={() => { setDateStart(""); setDateEnd(""); }}>清除</Button>
           </div>
           <label className="text-sm inline-flex items-center gap-1">
-            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> Only current menu
+            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> 仅当前菜单
           </label>
           <div className="text-sm inline-flex items-center gap-2">
-            <span>Menu</span>
+            <span>菜单</span>
             <Select value={menuFilter} onValueChange={(v) => setMenuFilter(v)}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="All" /></SelectTrigger>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="全部" /></SelectTrigger>
               <SelectContent>
-                <SelectItem key={ALL_VALUE} value={ALL_VALUE}>All</SelectItem>
+                <SelectItem key={ALL_VALUE} value={ALL_VALUE}>全部</SelectItem>
                 {allMenuIds.map((id) => (
                   <SelectItem key={id} value={id}>{id}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <Button variant="outline" onClick={exportOrders}>Export CSV</Button>
-          <Button variant="outline" onClick={exportAggregate}>Export Summary CSV</Button>
+          <Button variant="outline" onClick={exportOrders}>导出明细</Button>
+          <Button variant="outline" onClick={exportAggregate}>导出汇总</Button>
           {nextToken && (
             <Button variant="outline" disabled={loading} onClick={() => fetchPage(nextToken)}>
-              {loading ? "Loading..." : "Load More"}
+              {loading ? "加载中..." : "加载更多"}
             </Button>
           )}
         </div>
@@ -217,11 +217,11 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
         <table className="min-w-full divide-y divide-border">
           <thead>
             <tr>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Time</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Menu</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Items</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Total Qty</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Amount</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">时间</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">菜单</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">菜品数</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">总数量</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">金额</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -244,7 +244,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
             ))}
             {filteredByDate.length === 0 && (
               <tr>
-                <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={5}>No orders.</td>
+                <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={5}>暂无订单</td>
               </tr>
             )}
           </tbody>
@@ -253,14 +253,14 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
 
       {/* Summary */}
       <div className="mt-2">
-        <div className="font-medium mb-1">Summary (by Item)</div>
+        <div className="font-medium mb-1">汇总 (按菜品)</div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border">
             <thead>
               <tr>
-                <th className="px-3 py-2 text-left text-sm font-semibold">Item</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold">Qty</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold">Revenue</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">菜品</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">数量</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold">营收</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -273,7 +273,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
               ))}
               {aggregate.length === 0 && (
                 <tr>
-                  <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={3}>No data.</td>
+                  <td className="px-3 py-2 text-sm text-muted-foreground" colSpan={3}>暂无数据</td>
                 </tr>
               )}
             </tbody>
