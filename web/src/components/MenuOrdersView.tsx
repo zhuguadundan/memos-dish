@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import memoStore from "@/store/memo";
-import { Memo } from "@/types/proto/api/v1/memo_service";
+import { Memo, Visibility } from "@/types/proto/api/v1/memo_service";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { userServiceClient } from "@/grpcweb";
+import useCurrentUser from "@/hooks/useCurrentUser";
 
 type ParsedOrderItem = { name: string; qty: number; price?: number };
 type ParsedOrder = {
@@ -68,6 +70,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   const [dateStart, setDateStart] = useState<string>("");
   const [dateEnd, setDateEnd] = useState<string>("");
   const [menuFilter, setMenuFilter] = useState<string>(ALL_VALUE);
+  const currentUser = useCurrentUser();
 
   const rebuildFromStore = () => {
     const ms = memoStore.state.memos as Memo[];
@@ -267,6 +270,52 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
           </div>
           <Button variant="outline" onClick={exportOrders}>导出明细</Button>
           <Button variant="outline" onClick={exportAggregate}>导出汇总</Button>
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              try {
+                const content = `#order\n订单创建测试于 ${new Date().toLocaleString()}`;
+                await memoStore.createMemo({
+                  memo: { content, visibility: Visibility.PRIVATE },
+                  memoId: "",
+                  validateOnly: false,
+                  requestId: "",
+                });
+                // 创建成功后，主动触发当前用户的 webhook 测试，确保链路可见
+                try {
+                  if (!currentUser) throw new Error("未登录");
+                  const { webhooks } = await userServiceClient.listUserWebhooks({ parent: currentUser.name });
+                  if (!webhooks || webhooks.length === 0) {
+                    toast.error("未配置任何 Webhook");
+                  } else {
+                    let okCount = 0;
+                    for (const wh of webhooks) {
+                      const resp = await fetch("/api/v1/webhooks:test", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: wh.name, content: "订单创建测试" }),
+                      });
+                      const data = (await resp.json()) as { ok: boolean; message: string };
+                      if (resp.ok && data?.ok) okCount++;
+                    }
+                    if (okCount > 0) {
+                      toast.success(`已创建测试订单并触发 ${okCount} 条 Webhook`);
+                    } else {
+                      toast.error("已创建测试订单，但 Webhook 触发失败，请检查设置");
+                    }
+                  }
+                } catch (e: any) {
+                  console.error(e);
+                  // 即使 webhook 测试失败，也不影响创建流程
+                }
+              } catch (err: any) {
+                console.error(err);
+                toast.error(err?.details ?? "创建测试备忘录失败");
+              }
+            }}
+          >
+            订单创建测试
+          </Button>
           {nextToken && (
             <Button variant="outline" disabled={loading} onClick={() => fetchPage(nextToken)}>
               {loading ? "加载中..." : "加载更多"}

@@ -84,6 +84,8 @@ func activityTitle(activity string) string {
         return "Memo Updated"
     case "memos.memo.deleted":
         return "Memo Deleted"
+    case "memos.webhook.test":
+        return "Webhook Test"
     default:
         return activity
     }

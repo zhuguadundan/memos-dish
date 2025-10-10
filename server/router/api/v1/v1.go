@@ -119,12 +119,15 @@ func (s *APIV1Service) RegisterGateway(ctx context.Context, echoServer *echo.Ech
 	if err := v1pb.RegisterIdentityProviderServiceHandler(ctx, gwMux, conn); err != nil {
 		return err
 	}
-	gwGroup := echoServer.Group("")
-	gwGroup.Use(middleware.CORS())
-	handler := echo.WrapHandler(gwMux)
+    gwGroup := echoServer.Group("")
+    gwGroup.Use(middleware.CORS())
+    handler := echo.WrapHandler(gwMux)
 
-	gwGroup.Any("/api/v1/*", handler)
-	gwGroup.Any("/file/*", handler)
+    // 自定义测试 webhook 端点应优先于通配符路由注册，避免被 /api/v1/* 吞掉
+    echoServer.POST("/api/v1/webhooks:test", s.handleTestWebhook)
+
+    gwGroup.Any("/api/v1/*", handler)
+    gwGroup.Any("/file/*", handler)
 
 	// GRPC web proxy.
 	options := []grpcweb.Option{
@@ -134,7 +137,7 @@ func (s *APIV1Service) RegisterGateway(ctx context.Context, echoServer *echo.Ech
 		}),
 	}
 	wrappedGrpc := grpcweb.WrapServer(s.grpcServer, options...)
-	echoServer.Any("/memos.api.v1.*", echo.WrapHandler(wrappedGrpc))
+    echoServer.Any("/memos.api.v1.*", echo.WrapHandler(wrappedGrpc))
 
-	return nil
+    return nil
 }

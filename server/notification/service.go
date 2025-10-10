@@ -25,6 +25,34 @@ func NewService(store *store.Store) *Service {
     return &Service{store: store}
 }
 
+// TestWebhook 触发单条 webhook 的连通性测试。
+// 使用 memo.webhook.test 活动标题，并以给定 content 作为正文。
+func (s *Service) TestWebhook(ctx context.Context, h *storepb.WebhooksUserSetting_Webhook, content string) error {
+    if h == nil {
+        return fmt.Errorf("nil webhook")
+    }
+    typ, target := classifyWebhook(h)
+    // 构造一个最小 memo，供发送适配器使用。
+    creator := fmt.Sprintf("users/%d", 0)
+    memo := &v1pb.Memo{Creator: creator, Content: content}
+    hostKey := hostKeyFor(target)
+    const activityType = "memos.webhook.test"
+    switch typ {
+    case webhookTypeWeCom:
+        return sendWithRetry(ctx, hostKey, func() error { return sendWeCom(ctx, target, memo, activityType) })
+    case webhookTypeBark:
+        return sendWithRetry(ctx, hostKey, func() error { return sendBark(ctx, target, memo, activityType) })
+    default:
+        payload, err := convertMemoToWebhookPayload(memo)
+        if err != nil {
+            return err
+        }
+        payload.ActivityType = activityType
+        payload.URL = target
+        return sendWithRetry(ctx, hostKey, func() error { return webhook.Post(payload) })
+    }
+}
+
 // DispatchMemoWebhooks sends notifications based on user webhooks.
 func (s *Service) DispatchMemoWebhooks(ctx context.Context, memo *v1pb.Memo, activityType string) error {
     creatorID, err := ExtractUserIDFromName(memo.GetCreator())
@@ -84,11 +112,39 @@ func classifyWebhook(h *storepb.WebhooksUserSetting_Webhook) (webhookType, strin
     }
     if u, err := url.Parse(raw); err == nil {
         host := strings.ToLower(u.Host)
+        // 明确的企业微信域名
         if strings.Contains(host, "qyapi.weixin.qq.com") {
             return webhookTypeWeCom, raw
         }
-        if strings.Contains(host, "api.day.app") {
+        // Bark 识别逻辑（支持自建 bark-server）：
+        // 1) 官方域名 api.day.app
+        // 2) 主机名包含 "bark"（常见自建如 bark.example.com）
+        // 3) 路径包含 /push（Bark JSON 端点）
+        // 4) 路径首段看起来像设备 key（长度 16~64，字母数字）
+        if strings.Contains(host, "api.day.app") || strings.Contains(host, "bark") {
             return webhookTypeBark, raw
+        }
+        p := strings.Trim(u.Path, "/")
+        if p != "" {
+            if strings.Contains("/"+p+"/", "/push/") {
+                return webhookTypeBark, raw
+            }
+            segs := strings.Split(p, "/")
+            if len(segs) >= 1 {
+                s0 := segs[0]
+                if l := len(s0); l >= 16 && l <= 64 {
+                    alnum := true
+                    for _, r := range s0 {
+                        if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9') {
+                            alnum = false
+                            break
+                        }
+                    }
+                    if alnum {
+                        return webhookTypeBark, raw
+                    }
+                }
+            }
         }
     }
     return webhookTypeRAW, raw

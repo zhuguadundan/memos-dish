@@ -7,6 +7,7 @@ import useCurrentUser from "@/hooks/useCurrentUser";
 import { UserWebhook } from "@/types/proto/api/v1/user_service";
 import { useTranslate } from "@/utils/i18n";
 import CreateWebhookDialog from "../CreateWebhookDialog";
+import toast from "react-hot-toast";
 
 const WebhookSection = () => {
   const t = useTranslate();
@@ -82,7 +83,28 @@ const WebhookSection = () => {
                     <td className="max-w-[200px] px-3 py-2 text-sm text-foreground truncate" title={webhook.url}>
                       {webhook.url}
                     </td>
-                    <td className="relative whitespace-nowrap px-3 py-2 text-right text-sm">
+                    <td className="relative whitespace-nowrap px-3 py-2 text-right text-sm space-x-1">
+                      <Button
+                        variant="secondary"
+                        onClick={async () => {
+                          try {
+                            const resp = await fetch("/api/v1/webhooks:test", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ name: webhook.name }),
+                            });
+                            const data = (await resp.json()) as { ok: boolean; message: string };
+                            if (!resp.ok || !data.ok) {
+                              throw new Error(data?.message || `HTTP ${resp.status}`);
+                            }
+                            toast.success("已发送测试通知");
+                          } catch (err: any) {
+                            toast.error(`发送失败：${err?.message ?? "Unknown error"}`);
+                          }
+                        }}
+                      >
+                        测试
+                      </Button>
                       <Button
                         variant="ghost"
                         onClick={() => {
