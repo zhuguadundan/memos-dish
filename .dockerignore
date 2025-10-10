@@ -1,1 +1,23 @@
+# Git & VCS
+.git
+.gitignore
+
+# Node artifacts
 web/node_modules
+web/.vite
+web/.cache
+**/dist
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.log
+
+# Build outputs (keep bin/ — it contains Go CLI entry)
+build/
+*.out
+
+# Docker context exclusions that are rebuilt inside image
+**/.env*
+**/.cache
+**/.tmp
