@@ -209,7 +209,7 @@ const MenuMVP = () => {
 
     const content = generateContent();
     try {
-      await memoStore.createMemo({
+      const created = await memoStore.createMemo({
         memo: {
           content,
           visibility: Visibility.PRIVATE,
@@ -220,13 +220,12 @@ const MenuMVP = () => {
       });
       toast.success("已创建订单备忘录");
 
-      // 订单创建后，主动触发当前用户的 Webhook，确保通知送达
+      // 订单创建后，主动触发“创建者账号”的 Webhook，确保通知送达
       try {
-        const { user } = await import("@/store/user");
-        const current = user.state.user;
-        if (current?.name) {
+        const parentName = created?.creator;
+        if (parentName) {
           const { userServiceClient } = await import("@/grpcweb");
-          const { webhooks } = await userServiceClient.listUserWebhooks({ parent: current.name });
+          const { webhooks } = await userServiceClient.listUserWebhooks({ parent: parentName });
           if (webhooks && webhooks.length > 0) {
             let okCount = 0;
             const summary = (() => {

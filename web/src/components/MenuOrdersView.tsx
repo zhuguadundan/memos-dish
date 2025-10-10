@@ -13,17 +13,26 @@ type ParsedOrder = {
   memo: Memo;
   menuId: string | null;
   items: ParsedOrderItem[];
-  amount?: number;
+  // 金额定义：当所有项都标有价格时 amountDefined=true，amount 为合计；否则 amountDefined=false，amount 为已知部分合计
+  amount: number;
+  amountDefined: boolean;
   totalQty: number;
 };
+
+// 本地日期格式化（YYYY-MM-DD），避免 UTC 偏差
+function formatLocalYMD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 function parseOrderContent(content: string): { menuId: string | null; items: ParsedOrderItem[] } {
   const lines = content.split(/\r?\n/);
   let menuId: string | null = null;
-  if (lines.length > 0) {
-    const m = lines[0].match(/#menu:([A-Za-z0-9_-]+)/);
-    if (m) menuId = m[1];
-  }
+  // 允许 #menu: 不在首行，全文扫描
+  const menuMatch = content.match(/#menu:([A-Za-z0-9_-]+)/);
+  if (menuMatch) menuId = menuMatch[1];
   const items: ParsedOrderItem[] = [];
 
   // 支持两种格式:
@@ -31,7 +40,7 @@ function parseOrderContent(content: string): { menuId: string | null; items: Par
   // 2. 新格式: - 菜名 × 1 × ¥25 = ¥25.00 或 - 菜名 × 1
 
   const oldFormatRegex = /^\s*-\s*name:\"([^\"]+)\"\s+qty:(\d+)(?:\s+price:(\d+(?:\.\d+)?))?/;
-  const newFormatRegex = /^\s*-\s*(.+?)\s*×\s*(\d+)(?:\s*×\s*¥(\d+(?:\.\d+)?))?/;
+  const newFormatRegex = /^\s*-\s*(.+?)\s*[×xX*]\s*(\d+)(?:\s*[×xX*]\s*[¥￥]?(\d+(?:\.\d+)?))?/;
 
   for (const l of lines) {
     // 尝试旧格式
@@ -66,7 +75,6 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   const [orders, setOrders] = useState<ParsedOrder[]>([]);
   const [nextToken, setNextToken] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
-  const [onlySelected, setOnlySelected] = useState(false);
   const [dateStart, setDateStart] = useState<string>("");
   const [dateEnd, setDateEnd] = useState<string>("");
   const [menuFilter, setMenuFilter] = useState<string>(ALL_VALUE);
@@ -78,9 +86,22 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     for (const m of ms) {
       if (!isOrderMemo(m)) continue;
       const { menuId, items } = parseOrderContent(m.content || "");
-      const amount = items.reduce((s, it) => s + (it.price ? it.price * it.qty : 0), 0);
+      // 计算金额与是否完整定价
+      const amountInfo = items.reduce(
+        (acc, it) => {
+          if (it.price != null) {
+            acc.sum += it.price * it.qty;
+          } else {
+            acc.allDefined = false;
+          }
+          return acc;
+        },
+        { sum: 0, allDefined: true }
+      );
+      const amount = amountInfo.sum;
+      const amountDefined = amountInfo.allDefined;
       const totalQty = items.reduce((s, it) => s + it.qty, 0);
-      list.push({ memo: m, menuId, items, amount: amount || undefined, totalQty });
+      list.push({ memo: m, menuId, items, amount, amountDefined, totalQty });
     }
     list.sort((a, b) => {
       const ta = a.memo.createTime ? new Date(a.memo.createTime).getTime() : 0;
@@ -93,9 +114,14 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   const fetchPage = async (token?: string) => {
     setLoading(true);
     try {
-      const { memos, nextPageToken } = (await memoStore.fetchMemos({ pageToken: token })) || { memos: [], nextPageToken: "" };
-      // 合并 store 后再重建列表，避免重复解析
+      const res = await memoStore.fetchMemos({ pageToken: token });
+      const nextPageToken = res?.nextPageToken ?? "";
       setNextToken(nextPageToken || undefined);
+      // 刷新视图，确保即时可见
+      rebuildFromStore();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message ?? "加载失败");
     } finally {
       setLoading(false);
     }
@@ -113,14 +139,11 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
 
   const filtered = useMemo(() => {
     let cur = orders;
-    if (onlySelected && props.selectedMenuId) {
-      cur = cur.filter((o) => o.menuId === props.selectedMenuId);
-    }
     if (menuFilter && menuFilter !== ALL_VALUE) {
       cur = cur.filter((o) => o.menuId === menuFilter);
     }
     return cur;
-  }, [orders, onlySelected, props.selectedMenuId, menuFilter]);
+  }, [orders, menuFilter]);
 
   const filteredByDate = useMemo(() => {
     if (!dateStart && !dateEnd) return filtered;
@@ -133,13 +156,16 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
   }, [filtered, dateStart, dateEnd]);
 
   const aggregate = useMemo(() => {
-    const byItem = new Map<string, { qty: number; revenue: number }>();
+    const byItem = new Map<string, { qty: number; revenue: number; hasPrice: boolean }>();
     for (const o of filteredByDate) {
       for (const it of o.items) {
         const key = it.name;
-        const prev = byItem.get(key) || { qty: 0, revenue: 0 };
+        const prev = byItem.get(key) || { qty: 0, revenue: 0, hasPrice: false };
         prev.qty += it.qty;
-        if (it.price) prev.revenue += it.price * it.qty;
+        if (it.price != null) {
+          prev.revenue += it.price * it.qty;
+          prev.hasPrice = true;
+        }
         byItem.set(key, prev);
       }
     }
@@ -156,19 +182,30 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     const end = new Date();
     const start = new Date();
     start.setDate(start.getDate() - (days - 1));
-    setDateStart(start.toISOString().slice(0, 10));
-    setDateEnd(end.toISOString().slice(0, 10));
+    setDateStart(formatLocalYMD(start));
+    setDateEnd(formatLocalYMD(end));
   };
 
-  const toCsv = (rows: string[][]) => rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  // CSV 安全转义（防公式注入），并保持引号规范
+  const safeCsvCell = (value: unknown) => {
+    let s = String(value ?? "");
+    if (/^[=+\-@]/.test(s)) {
+      s = "'" + s;
+    }
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const toCsv = (rows: string[][]) => rows.map((r) => r.map((c) => safeCsvCell(c)).join(",")).join("\n");
   const downloadCsv = (name: string, csv: string) => {
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = name;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    // 延迟 revoke 以避免竞态问题
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   };
   const exportOrders = () => {
     const header = ["时间", "菜单ID", "菜品", "数量", "价格", "金额"];
@@ -176,7 +213,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     for (const o of filteredByDate) {
       const timeStr = o.memo.createTime ? new Date(o.memo.createTime).toLocaleString() : "";
       for (const it of o.items) {
-        const amt = it.price ? (it.price * it.qty).toFixed(2) : "";
+        const amt = it.price != null ? (it.price * it.qty).toFixed(2) : "";
         rows.push([timeStr, o.menuId ?? "", it.name, String(it.qty), it.price != null ? String(it.price) : "", amt]);
       }
     }
@@ -186,7 +223,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
     const header = ["菜品", "数量", "营收"];
     const rows: string[][] = [header];
     for (const row of aggregate) {
-      rows.push([row.name, String(row.qty), row.revenue ? row.revenue.toFixed(2) : ""]);
+      rows.push([row.name, String(row.qty), row.hasPrice ? row.revenue.toFixed(2) : ""]);
     }
     downloadCsv("订单汇总.csv", toCsv(rows));
   };
@@ -254,7 +291,13 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
             <Button variant="destructive" size="sm" onClick={clearTodayOrders}>清除今天订单</Button>
           </div>
           <label className="text-sm inline-flex items-center gap-1">
-            <input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} /> 仅当前菜单
+            <input
+              type="checkbox"
+              disabled={!props.selectedMenuId}
+              checked={props.selectedMenuId ? menuFilter === props.selectedMenuId : false}
+              onChange={(e) => setMenuFilter(e.target.checked && props.selectedMenuId ? props.selectedMenuId : ALL_VALUE)}
+            />
+            仅当前菜单
           </label>
           <div className="text-sm inline-flex items-center gap-2">
             <span>菜单</span>
@@ -275,16 +318,17 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
             onClick={async () => {
               try {
                 const content = `#order\n订单创建测试于 ${new Date().toLocaleString()}`;
-                await memoStore.createMemo({
+                const created = await memoStore.createMemo({
                   memo: { content, visibility: Visibility.PRIVATE },
                   memoId: "",
                   validateOnly: false,
                   requestId: "",
                 });
-                // 创建成功后，主动触发当前用户的 webhook 测试，确保链路可见
+                // 创建成功后，主动触发创建者账号的 webhook 测试（与真实派发绑定一致）
                 try {
-                  if (!currentUser) throw new Error("未登录");
-                  const { webhooks } = await userServiceClient.listUserWebhooks({ parent: currentUser.name });
+                  const parentName = created?.creator || currentUser?.name || "";
+                  if (!parentName) throw new Error("未登录或无法识别创建者");
+                  const { webhooks } = await userServiceClient.listUserWebhooks({ parent: parentName });
                   if (!webhooks || webhooks.length === 0) {
                     toast.error("未配置任何 Webhook");
                   } else {
@@ -299,7 +343,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
                       if (resp.ok && data?.ok) okCount++;
                     }
                     if (okCount > 0) {
-                      toast.success(`已创建测试订单并触发 ${okCount} 条 Webhook`);
+                      toast.success(`已创建测试订单并触发 ${okCount} 条 Webhook（账号：${parentName}）`);
                     } else {
                       toast.error("已创建测试订单，但 Webhook 触发失败，请检查设置");
                     }
@@ -351,7 +395,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
                 <td className="px-3 py-2 text-sm">{o.menuId ?? ""}</td>
                 <td className="px-3 py-2 text-sm">{o.items.length}</td>
                 <td className="px-3 py-2 text-sm">{o.totalQty}</td>
-                <td className="px-3 py-2 text-sm">{o.amount != null ? o.amount.toFixed(2) : "-"}</td>
+                <td className="px-3 py-2 text-sm">{o.amountDefined ? o.amount.toFixed(2) : "-"}</td>
               </tr>
             ))}
             {filteredByDate.length === 0 && (
@@ -380,7 +424,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
                 <tr key={row.name}>
                   <td className="px-3 py-2 text-sm">{row.name}</td>
                   <td className="px-3 py-2 text-sm">{row.qty}</td>
-                  <td className="px-3 py-2 text-sm">{row.revenue ? row.revenue.toFixed(2) : "-"}</td>
+                  <td className="px-3 py-2 text-sm">{row.hasPrice ? row.revenue.toFixed(2) : "-"}</td>
                 </tr>
               ))}
               {aggregate.length === 0 && (

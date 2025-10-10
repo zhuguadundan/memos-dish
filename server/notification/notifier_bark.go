@@ -27,6 +27,9 @@ func sendBark(ctx context.Context, base string, memo *v1pb.Memo, activity string
     }
     title := activityTitle(activity)
     body := memo.GetSnippet()
+    if sum, ok := buildOrderText(memo.GetContent()); ok {
+        body = sum
+    }
     if body == "" {
         body = memo.GetContent()
         if len([]rune(body)) > 64 {

@@ -34,6 +34,34 @@ func sendWeCom(ctx context.Context, url string, memo *v1pb.Memo, activity string
         return err
     }
     title := activityTitle(activity)
+    // 若为点餐格式，优先构造订单摘要，否则使用 snippet
+    if body, ok := buildOrderText(memo.GetContent()); ok {
+        text := fmt.Sprintf("%s\n%s", title, body)
+        payload := weComTextPayload{
+            MsgType: "text",
+            Text:    weComContent{Content: text},
+        }
+        b, _ := json.Marshal(payload)
+        req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(b))
+        if err != nil {
+            return err
+        }
+        req.Header.Set("Content-Type", "application/json")
+        client := &http.Client{Timeout: httpTimeout}
+        resp, err := client.Do(req)
+        if err != nil {
+            return err
+        }
+        defer resp.Body.Close()
+        var r weComResp
+        if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+            return err
+        }
+        if r.ErrCode != 0 {
+            return fmt.Errorf("wecom error: %d %s", r.ErrCode, r.ErrMsg)
+        }
+        return nil
+    }
     text := fmt.Sprintf("%s\nCreator: %s\nSnippet: %s", title, memo.GetCreator(), memo.GetSnippet())
     if memo.GetSnippet() == "" {
         // 兜底：直接截断 content

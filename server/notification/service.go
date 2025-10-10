@@ -60,9 +60,16 @@ func (s *Service) DispatchMemoWebhooks(ctx context.Context, memo *v1pb.Memo, act
         return fmt.Errorf("invalid memo creator: %w", err)
     }
 
-    hooks, err := s.store.GetUserWebhooks(ctx, creatorID)
+    // 重要：不要使用请求 ctx 查询用户设置，避免在请求结束或客户端断开时被取消。
+    ctxFetch, cancelFetch := context.WithTimeout(context.Background(), 2*time.Second)
+    defer cancelFetch()
+    hooks, err := s.store.GetUserWebhooks(ctxFetch, creatorID)
     if err != nil {
         return err
+    }
+    if len(hooks) == 0 {
+        slog.Info("No user webhooks to dispatch", slog.Int("creatorID", int(creatorID)), slog.String("activity", activityType))
+        return nil
     }
 
     for _, h := range hooks {
@@ -71,13 +78,16 @@ func (s *Service) DispatchMemoWebhooks(ctx context.Context, memo *v1pb.Memo, act
         release := acquire(hostKey)
         go func(typ webhookType, target string, hostKey string, release func()) {
             defer release()
+            // 重要：不要使用请求上下文，避免在请求结束时被取消。
+            ctxSend, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+            defer cancel()
             start := time.Now()
             var err error
             switch typ {
             case webhookTypeWeCom:
-                err = sendWithRetry(ctx, hostKey, func() error { return sendWeCom(ctx, target, memo, activityType) })
+                err = sendWithRetry(ctxSend, hostKey, func() error { return sendWeCom(ctxSend, target, memo, activityType) })
             case webhookTypeBark:
-                err = sendWithRetry(ctx, hostKey, func() error { return sendBark(ctx, target, memo, activityType) })
+                err = sendWithRetry(ctxSend, hostKey, func() error { return sendBark(ctxSend, target, memo, activityType) })
             default:
                 payload, perr := convertMemoToWebhookPayload(memo)
                 if perr != nil {
@@ -86,7 +96,7 @@ func (s *Service) DispatchMemoWebhooks(ctx context.Context, memo *v1pb.Memo, act
                 }
                 payload.ActivityType = activityType
                 payload.URL = target
-                err = sendWithRetry(ctx, hostKey, func() error { return webhook.Post(payload) })
+                err = sendWithRetry(ctxSend, hostKey, func() error { return webhook.Post(payload) })
             }
             duration := time.Since(start)
             if err != nil {
