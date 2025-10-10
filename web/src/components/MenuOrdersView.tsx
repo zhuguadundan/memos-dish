@@ -319,7 +319,7 @@ export default function MenuOrdersView(props: { selectedMenuId?: string | "" }) 
               try {
                 const content = `#order\n订单创建测试于 ${new Date().toLocaleString()}`;
                 const created = await memoStore.createMemo({
-                  memo: { content, visibility: Visibility.PRIVATE },
+                  memo: { content, visibility: Visibility.PROTECTED },
                   memoId: "",
                   validateOnly: false,
                   requestId: "",

@@ -5,7 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import memoStore from "@/store/memo";
+import { attachmentStore, workspaceStore } from "@/store";
 import { Visibility } from "@/types/proto/api/v1/memo_service";
+import { Attachment } from "@/types/proto/api/v1/attachment_service";
+import { getAttachmentUrl } from "@/utils/attachment";
 import { toast } from "react-hot-toast";
 import MenuOrdersView from "@/components/MenuOrdersView";
 
@@ -212,7 +215,8 @@ const MenuMVP = () => {
       const created = await memoStore.createMemo({
         memo: {
           content,
-          visibility: Visibility.PRIVATE,
+          // 默认设置为工作区内可见（PROTECTED），便于所有登录用户查看
+          visibility: Visibility.PROTECTED,
         },
         memoId: "",
         validateOnly: false,
@@ -240,16 +244,44 @@ const MenuMVP = () => {
       };
       const json = JSON.stringify(payload, null, 2);
       const content = `#menu-def\n\n\`\`\`json\n${json}\n\`\`\``;
+      // 如果内容超过工作区限制，自动使用“附件发布”降级路径
+      const __limit = Number(workspaceStore.state.memoRelatedSetting.contentLengthLimit || 8192);
+      if (content.length > __limit) {
+        const __placeholder = await memoStore.createMemo({
+          memo: {
+            content: `#menu-def\n\n(菜单定义较大，已作为 JSON 附件发布；导入时将自动识别附件)`,
+            visibility: Visibility.PROTECTED,
+          },
+          memoId: "",
+          validateOnly: false,
+          requestId: "",
+        });
+        const __filename = `menu-def-${new Date().toISOString().replace(/[:T]/g, "-").slice(0,19)}.json`;
+        const __bytes = new TextEncoder().encode(JSON.stringify(payload));
+        const __att = await attachmentStore.createAttachment({
+          attachment: Attachment.fromPartial({
+            memo: __placeholder.name,
+            filename: __filename,
+            type: "application/json",
+            content: __bytes,
+          }),
+        });
+        const __tip = `\n\n![[${__att.name}]]`;
+        await memoStore.updateMemo({ name: __placeholder.name, content: __placeholder.content + __tip }, ["content"]);
+        toast.success("菜单定义已以附件方式发布（超长内容自动降级）");
+        return;
+      }
       await memoStore.createMemo({
         memo: {
           content,
-          visibility: Visibility.PRIVATE,
+          // 菜单定义默认以“工作区内可见”发布，便于所有用户获取
+          visibility: Visibility.PROTECTED,
         },
         memoId: "",
         validateOnly: false,
         requestId: "",
       });
-      toast.success("已导出为菜单定义备忘录（#menu-def）");
+      toast.success("已以工作区内可见（PROTECTED）导出 #menu-def 菜单定义");
     } catch (err: any) {
       console.error(err);
       toast.error(err?.details ?? "导出失败");
@@ -280,9 +312,29 @@ const MenuMVP = () => {
           const c = m.content || "";
           if (!/#menu-def\b/.test(c)) continue;
           try {
+            // 优先从正文代码块解析 JSON
             const raw = stripCodeFence(c);
-            const data = JSON.parse(raw);
-            candidates.push({ memo: m, data });
+            let parsed: any | null = null;
+            try {
+              parsed = JSON.parse(raw);
+            } catch {
+              parsed = null;
+            }
+            if (parsed) {
+              candidates.push({ memo: m, data: parsed });
+            } else {
+              // 回退到附件（application/json 或 .json）
+              const jsonAtt = (m.attachments || []).find((a) => a.type.includes("json") || a.filename.toLowerCase().endsWith(".json"));
+              if (jsonAtt) {
+                const url = getAttachmentUrl(jsonAtt);
+                const res = await fetch(url);
+                if (res.ok) {
+                  const txt = await res.text();
+                  const data = JSON.parse(txt);
+                  candidates.push({ memo: m, data });
+                }
+              }
+            }
           } catch {
             // ignore parse errors
           }
@@ -351,7 +403,18 @@ const MenuMVP = () => {
 
   return (
     <div className="w-full max-w-5xl mx-auto p-4 space-y-4">
-      <h2 className="text-lg font-semibold">菜单</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">菜单</h2>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportMenusToMemo} title="导出菜单定义为备忘录（工作区内可见）">
+            <DownloadIcon className="w-4 h-4 mr-1" /> 发布/导出菜单
+          </Button>
+          <Button variant="outline" onClick={importMenusFromMemos} title="从含 #menu-def 的备忘录导入菜单定义">
+            <UploadIcon className="w-4 h-4 mr-1" /> 从备忘录导入
+          </Button>
+        </div>
+      </div>
+      <div className="text-xs text-muted-foreground">提示：菜单默认保存在本地。发布/导出后将以“工作区内可见（PROTECTED）”的备忘录共享。</div>
 
       <div className="grid md:grid-cols-3 gap-4">
         {/* 菜单列表 */}
