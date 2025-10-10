@@ -61,13 +61,15 @@ func (s *Service) DispatchMemoWebhooks(ctx context.Context, memo *v1pb.Memo, act
     }
 
     // 重要：不要使用请求 ctx 查询用户设置，避免在请求结束或客户端断开时被取消。
-    ctxFetch, cancelFetch := context.WithTimeout(context.Background(), 2*time.Second)
+    // 使用独立后台上下文查询，留足时间避免慢存储导致的遗漏
+    ctxFetch, cancelFetch := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancelFetch()
     hooks, err := s.store.GetUserWebhooks(ctxFetch, creatorID)
     if err != nil {
         return err
     }
     if len(hooks) == 0 {
+        // 仅记录，不视为错误。真实派发没有可用 webhook 即自然不发送。
         slog.Info("No user webhooks to dispatch", slog.Int("creatorID", int(creatorID)), slog.String("activity", activityType))
         return nil
     }

@@ -220,35 +220,7 @@ const MenuMVP = () => {
       });
       toast.success("已创建订单备忘录");
 
-      // 订单创建后，主动触发“创建者账号”的 Webhook，确保通知送达
-      try {
-        const parentName = created?.creator;
-        if (parentName) {
-          const { userServiceClient } = await import("@/grpcweb");
-          const { webhooks } = await userServiceClient.listUserWebhooks({ parent: parentName });
-          if (webhooks && webhooks.length > 0) {
-            let okCount = 0;
-            const summary = (() => {
-              const first = content.split(/\r?\n/).find((l) => l && !l.startsWith("#")) || "新订单已创建";
-              return first.slice(0, 80);
-            })();
-            for (const wh of webhooks) {
-              const resp = await fetch("/api/v1/webhooks:test", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: wh.name, content: summary }),
-              });
-              const data = (await resp.json()) as { ok: boolean; message: string };
-              if (resp.ok && data?.ok) okCount++;
-            }
-            if (okCount === 0) {
-              toast.error("订单已创建，但 Webhook 触发失败");
-            }
-          }
-        }
-      } catch (e) {
-        // 忽略错误，不影响下单流程
-      }
+      // 注意：不再在前端主动触发“测试 Webhook”，避免与真实事件混淆。
 
       // 重置选项但保留菜单
       setQtyMap({});
