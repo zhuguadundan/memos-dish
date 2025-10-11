@@ -30,17 +30,19 @@ function formatLocalYMD(d: Date): string {
 function parseOrderContent(content: string): { menuId: string | null; items: ParsedOrderItem[] } {
   const lines = content.split(/\r?\n/);
   let menuId: string | null = null;
-  // 允许 #menu: 不在首行，全文扫描
-  const menuMatch = content.match(/#menu:([A-Za-z0-9_-]+)/);
+  // 允许 #menu: 或 #menu- 格式，全文扫描
+  const menuMatch = content.match(/#menu[-:]([A-Za-z0-9_-]+)/);
   if (menuMatch) menuId = menuMatch[1];
   const items: ParsedOrderItem[] = [];
 
-  // 支持两种格式:
+  // 支持多种格式:
   // 1. 旧格式: - name:"菜名" qty:1 price:25
   // 2. 新格式: - 菜名 × 1 × ¥25 = ¥25.00 或 - 菜名 × 1
+  // 3. PublicMenuOrder格式: ✅ 菜名 × 2份
 
   const oldFormatRegex = /^\s*-\s*name:\"([^\"]+)\"\s+qty:(\d+)(?:\s+price:(\d+(?:\.\d+)?))?/;
   const newFormatRegex = /^\s*-\s*(.+?)\s*[×xX*]\s*(\d+)(?:\s*[×xX*]\s*[¥￥]?(\d+(?:\.\d+)?))?/;
+  const checkmarkFormatRegex = /^\s*✅\s*(.+?)\s*[×xX*]\s*(\d+)\s*份?/;
 
   for (const l of lines) {
     // 尝试旧格式
@@ -50,6 +52,15 @@ function parseOrderContent(content: string): { menuId: string | null; items: Par
       const qty = Number(m[2]);
       const price = m[3] ? Number(m[3]) : undefined;
       items.push({ name, qty, price });
+      continue;
+    }
+
+    // 尝试PublicMenuOrder格式（✅ 菜名 × 2份）
+    m = l.match(checkmarkFormatRegex);
+    if (m) {
+      const name = m[1].trim();
+      const qty = Number(m[2]);
+      items.push({ name, qty });
       continue;
     }
 

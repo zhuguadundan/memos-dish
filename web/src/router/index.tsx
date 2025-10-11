@@ -21,6 +21,8 @@ const SignUp = lazy(() => import("@/pages/SignUp"));
 const UserProfile = lazy(() => import("@/pages/UserProfile"));
 const MemoDetailRedirect = lazy(() => import("./MemoDetailRedirect"));
 const MenuMVP = lazy(() => import("@/pages/MenuMVP"));
+const MenuEnhanced = lazy(() => import("@/pages/MenuEnhanced"));
+const PublicMenuOrder = lazy(() => import("@/pages/PublicMenuOrder"));
 
 export enum Routes {
   ROOT = "/",
@@ -38,6 +40,14 @@ const router = createBrowserRouter([
     path: "/",
     element: <App />,
     children: [
+      {
+        path: "/menu/public/:publicId",
+        element: (
+          <Suspense fallback={<Loading />}>
+            <PublicMenuOrder />
+          </Suspense>
+        ),
+      },
       {
         path: Routes.AUTH,
         children: [
@@ -124,7 +134,7 @@ const router = createBrowserRouter([
             path: Routes.MENU,
             element: (
               <Suspense fallback={<Loading />}>
-                <MenuMVP />
+                <MenuEnhanced />
               </Suspense>
             ),
           },

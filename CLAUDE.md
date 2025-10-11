@@ -8,6 +8,8 @@ Memos 是一个现代化的开源自托管知识管理和笔记平台。采用 G
 
 **当前分支**: `menu` (基于 `main` 分支进行二次开发)
 **二次开发目标**: 扩展菜单模块和 Webhook 通知功能 (详见 `memos二次开发计划.md`)
+**Go 版本**: 1.25+ (见 go.mod)
+**Node 版本**: 推荐 20.x+ (前端开发)
 
 ## 核心架构
 
@@ -79,8 +81,11 @@ web/
 # 开发模式启动 (默认端口 8081,SQLite)
 go run ./bin/memos --mode dev --port 8081
 
-# 编译二进制
+# 编译二进制 (Windows)
 go build -o memos.exe ./bin/memos
+
+# 编译二进制 (Linux/Mac)
+go build -o memos ./bin/memos
 
 # 运行测试
 go test ./...
@@ -88,8 +93,14 @@ go test ./...
 # 运行后端测试 (包含 store 层测试)
 go test -v ./server/... ./store/...
 
+# 运行单个测试文件
+go test -v ./store/menu_test.go
+
 # 代码检查 (需要 golangci-lint)
 golangci-lint run
+
+# 整理依赖
+go mod tidy
 ```
 
 **环境变量** (可选):
@@ -298,7 +309,7 @@ const t = useTranslate();
 
 参考 `memos二次开发计划.md` 的修订版 v2:
 
-### Webhook 模块
+### Webhook 模块 (当前重点)
 - **沿用现有实现**: 使用 `UserSetting.WEBHOOKS`,不新增独立表
 - **API 路径**: `/api/v1/{parent=users/*}/webhooks` (现有路径)
 - **安全加固**:
@@ -306,16 +317,21 @@ const t = useTranslate();
   - 可选 HMAC-SHA256 签名 (`X-Memos-Signature`)
   - 指数退避重试,并发限流,熔断机制
 - **多类型支持**: RAW/WeCom/Bark (通过 `url` 前缀区分或 `title` 约定)
+- **实现位置**: `plugin/webhook/` 目录
 
-### 菜单模块
+### 菜单模块 (MVP 阶段)
 - **MVP 优先**: 先用前端拼装"订单 Memo"验证需求 (标签 `#order`)
 - **正式建模**: 验证有价值后再新增 `menu_service.proto` 和数据库表
 - **权限设计**: 遵循 `users/{user}/menus/{menu}` 资源命名风格
+- **实现位置**:
+  - 前端: `web/src/pages/MenuOrdersView.tsx` (MVP)
+  - 后端: 待正式建模后在 `server/router/api/v1/` 添加
 
 ### 通用原则
 - **最小侵入**: 新功能尽量作为可选模块,不影响核心流程
 - **向后兼容**: 数据库迁移必须支持现有实例平滑升级
 - **测试覆盖**: 新增代码必须有单元测试和集成测试
+- **Git 工作流**: 基于 `menu` 分支开发,定期从 `main` 合并更新
 
 ## 提交规范
 
@@ -406,6 +422,11 @@ server: {
 - 自动生成对应的 REST 端点
 - 示例: `GET /api/v1/memos` 映射到 `ListMemos` RPC
 
+### 5. Windows 开发环境注意事项
+- 路径分隔符: Go 代码使用 `filepath` 包处理跨平台路径
+- 构建输出: Windows 生成 `.exe` 文件
+- 换行符: 配置 Git 使用 `core.autocrlf=true`
+
 ## 参考资源
 
 - **项目主页**: https://www.usememos.com
@@ -413,3 +434,5 @@ server: {
 - **API 文档**: 启动服务后访问 `/api/v1/*` (gRPC-Gateway 自动路由)
 - **开发计划**: `memos二次开发计划.md`
 - **安全政策**: `SECURITY.md`
+- **菜单功能文档**: `docs/menu.md`
+- **分支差异说明**: `docs/menu-branch-diff.md`
