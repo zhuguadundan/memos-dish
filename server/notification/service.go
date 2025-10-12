@@ -96,7 +96,15 @@ func (s *Service) DispatchMemoWebhooks(ctx context.Context, memo *v1pb.Memo, act
                     slog.Warn("convert payload failed", slog.Any("err", perr))
                     return
                 }
-                payload.ActivityType = activityType
+                // 点菜订单：替换为精简正文，并将 activityType 设置为更贴近业务的标题
+                if sum, ok := buildOrderSummary(memo.GetContent()); ok {
+                    if payload.Memo != nil {
+                        payload.Memo.Content = sum
+                    }
+                    payload.ActivityType = "点菜订单"
+                } else {
+                    payload.ActivityType = activityType
+                }
                 payload.URL = target
                 err = sendWithRetry(ctxSend, hostKey, func() error { return webhook.Post(payload) })
             }
