@@ -179,8 +179,8 @@ func buildOrderText(content string) (text string, ok bool) {
     if m := regexp.MustCompile(`#menu:([A-Za-z0-9_-]+)`).FindStringSubmatch(content); len(m) == 2 {
         menuID = m[1]
     }
-    oldRe := regexp.MustCompile(`^\s*-\s*name:\"([^\"]+)\"\s+qty:(\d+)(?:\s+price:(\d+(?:\.\d+)?))?`)
-    newRe := regexp.MustCompile(`^\s*-\s*(.+?)\s*[×xX*]\s*(\d+)(?:\s*[×xX*]\s*[¥￥]?(\d+(?:\.\d+)?))?`)
+    oldRe := regexp.MustCompile(`^\s*[-•*]?\s*name:\"([^\"]+)\"\s+qty:(\d+)(?:\s+price:(\d+(?:\.\d+)?))?`)
+    newRe := regexp.MustCompile(`^\s*[-•*]?\s*(.+?)\s*[×xX*]\s*(\d+)(?:\s*[×xX*]\s*[¥￥]?(\d+(?:\.\d+)?))?`)
 
     type item struct{ name string; qty int; price *float64 }
     var items []item
