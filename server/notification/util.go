@@ -102,8 +102,8 @@ func buildOrderSummary(content string) (text string, ok bool) {
     lines := strings.Split(content, "\n")
     nameRe := regexp.MustCompile(`^\s*点菜人[:：]\s*(.+?)\s*$`)
     timeRe := regexp.MustCompile(`^\s*时间[:：]\s*(.+?)\s*$`)
-    oldRe := regexp.MustCompile(`^\s*-\s*name:\"([^\"]+)\"\s+qty:(\d+)`)
-    newRe := regexp.MustCompile(`^\s*-\s*(.+?)\s*[×xX*]\s*(\d+)`)
+    oldRe := regexp.MustCompile(`name:\"([^\"]+)\"\s+qty:(\d+)`)
+    newRe := regexp.MustCompile(`^\s*(.+?)\s*[×xX*]\s*(\d+)`)
 
     customer := ""
     orderedAt := ""
