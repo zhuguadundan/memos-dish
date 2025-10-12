@@ -102,7 +102,7 @@ const MenuEnhanced = () => {
     if (selectedMenuId === id) setSelectedMenuId(next[0]?.id ?? "");
   };
 
-  const toggleAllowOrder = (menuId: string) => {
+  const toggleAllowOrder = async (menuId: string) => {
     const next = menus.map(m => {
       if (m.id === menuId) {
         return {
@@ -115,6 +115,14 @@ const MenuEnhanced = () => {
     });
     setMenus(next);
     saveMenus(next);
+    const updated = next.find(m => m.id === menuId);
+    if (updated && updated.allowOrder) {
+      try {
+        await publishPublicMenu(updated);
+      } catch (e) {
+        toast.error("Auto publish failed. Please sign in and retry.");
+      }
+    }
   };
 
   const getPublicLink = (menu: Menu) => {
@@ -122,11 +130,50 @@ const MenuEnhanced = () => {
     return `${window.location.origin}/menu/public/${menu.publicId}`;
   };
 
+  const publishPublicMenu = async (menu: Menu) => {
+    if (!menu.publicId) throw new Error("missing publicId");
+    const payload = {
+      version: 1,
+      kind: "menu-public",
+      publicId: menu.publicId,
+      id: menu.id,
+      name: menu.name,
+      items: menu.items,
+      allowOrder: true,
+    } as any;
+    const json = JSON.stringify(payload, null, 2);
+    const content = `#menu-pub\n\n\`\`\`json\n${json}\n\`\`\``;
+    const limit = 8124;
+    let created: any = null;
+    if (content.length <= limit) {
+      created = await memoStore.createMemo({
+        memo: { content, visibility: Visibility.PUBLIC },
+        memoId: "",
+        validateOnly: false,
+        requestId: "",
+      });
+    } else {
+      const placeholder = await memoStore.createMemo({
+        memo: { content: `#menu-pub\npublicId:${menu.publicId}\n\n(Menu is large; published as JSON attachment)`, visibility: Visibility.PUBLIC },
+        memoId: "",
+        validateOnly: false,
+        requestId: "",
+      });
+      const filename = `menu-public-${new Date().toISOString().replace(/[:T]/g, "-").slice(0,19)}.json`;
+      const bytes = new TextEncoder().encode(JSON.stringify(payload));
+      await attachmentStore.createAttachment({
+        attachment: Attachment.fromPartial({ memo: placeholder.name, filename, type: "application/json", content: bytes }),
+      });
+      created = placeholder;
+    }
+    return created?.name as string;
+  };
+
   const copyPublicLink = (menu: Menu) => {
     const link = getPublicLink(menu);
     if (!link) return;
     navigator.clipboard.writeText(link);
-    toast.success("分享链接已复制到剪贴板");
+    toast.success("Link copied to clipboard.");
   };
 
   const addItem = () => {

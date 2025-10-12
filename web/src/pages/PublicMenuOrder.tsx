@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "react-hot-toast";
 import memoStore from "@/store/memo";
+import { getAttachmentUrl } from "@/utils/attachment";
 import { Visibility } from "@/types/proto/api/v1/memo_service";
 import { ShoppingCartIcon, CheckCircleIcon, PlusIcon, MinusIcon, XIcon, ZoomInIcon, ZoomOutIcon, MaximizeIcon } from "lucide-react";
 
@@ -30,7 +31,8 @@ type OrderItem = {
 
 const STORAGE_KEY = "memos.menu.enhanced";
 
-function loadMenuByPublicId(publicId: string): Menu | null {
+// 从本地存储读取（向后兼容旧链接）
+function loadMenuByPublicIdLocal(publicId: string): Menu | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -41,11 +43,90 @@ function loadMenuByPublicId(publicId: string): Menu | null {
   }
 }
 
+// 去除 Markdown 代码围栏，提取 JSON 文本
+function stripCodeFence(src: string) {
+  const m = src.match(/```\s*json\s*([\s\S]*?)```/i);
+  if (m) return m[1];
+  const i = Math.min(
+    ...[src.indexOf("{"), src.indexOf("[")].filter((x) => x >= 0),
+  );
+  if (isFinite(i as number) && (i as number) >= 0) return src.slice(i as number);
+  return src;
+}
+
+// 从公开备忘录解析菜单定义
+function parseMenuFromMemoContent(content: string): Menu | null {
+  try {
+    const raw = stripCodeFence(content || "");
+    const data = JSON.parse(raw);
+    // 兼容两种结构：单菜单 {kind: 'menu-public', ...} 或集合 {menus: [...]}（取首个）
+    if (data && data.kind === "menu-public") {
+      return {
+        id: data.id,
+        name: data.name,
+        items: Array.isArray(data.items) ? data.items : [],
+        allowOrder: true,
+        publicId: data.publicId,
+      } as Menu;
+    }
+    if (Array.isArray(data?.menus) && data.menus.length > 0) {
+      const m = data.menus[0];
+      return {
+        id: m.id,
+        name: m.name,
+        items: Array.isArray(m.items) ? m.items : [],
+        allowOrder: !!m.allowOrder,
+        publicId: m.publicId,
+      } as Menu;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+// 从备忘录附件中查找 JSON 并解析（用于内容超长走附件的场景）
+async function parseMenuFromAttachments(memo: any): Promise<Menu | null> {
+  try {
+    const jsonAtt = (memo.attachments || []).find((a: any) => (a.type || "").includes("json") || (a.filename || "").toLowerCase().endsWith(".json"));
+    if (!jsonAtt) return null;
+    const url = getAttachmentUrl(jsonAtt);
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const txt = await res.text();
+    const data = JSON.parse(txt);
+    if (data && data.kind === "menu-public") {
+      return {
+        id: data.id,
+        name: data.name,
+        items: Array.isArray(data.items) ? data.items : [],
+        allowOrder: true,
+        publicId: data.publicId,
+      } as Menu;
+    }
+    if (Array.isArray(data?.menus) && data.menus.length > 0) {
+      const m = data.menus[0];
+      return {
+        id: m.id,
+        name: m.name,
+        items: Array.isArray(m.items) ? m.items : [],
+        allowOrder: !!m.allowOrder,
+        publicId: m.publicId,
+      } as Menu;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 const PublicMenuOrder = () => {
   const { publicId } = useParams<{ publicId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [menu, setMenu] = useState<Menu | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sourceMemoName, setSourceMemoName] = useState<string>("");
   const [customerName, setCustomerName] = useState("");
   const [orderItems, setOrderItems] = useState<Map<string, number>>(new Map());
   const [orderNote, setOrderNote] = useState("");
@@ -62,12 +143,102 @@ const PublicMenuOrder = () => {
     }
 
     // 从 localStorage 加载菜单
-    const foundMenu = loadMenuByPublicId(publicId);
+    const foundMenu = loadMenuByPublicIdLocal(publicId);
     if (foundMenu) {
       setMenu(foundMenu);
     }
     setLoading(false);
   }, [publicId]);
+
+  // 从公开端点优先加载；若失败则回退到公开备忘录扫描
+  useEffect(() => {
+    (async () => {
+      if (!publicId) {
+        setLoading(false);
+        return;
+      }
+
+      // 优先：调用后端公开接口按 publicId（可选 memo）获取公开菜单定义
+      try {
+        const memoParam = searchParams.get("memo") || "";
+        const qs = new URLSearchParams({ publicId });
+        if (memoParam) qs.set("memo", memoParam);
+        const resp = await fetch(`/api/public/menu?${qs.toString()}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          // data 结构为 v1.Memo JSON
+          let parsed = parseMenuFromMemoContent(data?.content || "");
+          if (!parsed) {
+            parsed = await parseMenuFromAttachments(data);
+          }
+          if (parsed && parsed.publicId === publicId && parsed.allowOrder) {
+            setMenu(parsed);
+            if (typeof data?.name === "string") setSourceMemoName(data.name);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // ignore and fallback to scanning
+      }
+
+      // 回退 1)：若链接包含 memo 资源名，则精确拉取公开备忘录
+      const memoName = searchParams.get("memo") || "";
+      if (memoName) {
+        try {
+          const memo = await memoStore.getOrFetchMemoByName(memoName, { skipCache: true });
+          let parsed = parseMenuFromMemoContent(memo.content || "");
+          if (!parsed) {
+            parsed = await parseMenuFromAttachments(memo);
+          }
+          if (parsed && parsed.publicId === publicId && parsed.allowOrder) {
+            setMenu(parsed);
+            setSourceMemoName(memo.name || memoName);
+            setLoading(false);
+            return;
+          }
+        } catch {
+          // 忽略，继续扫描公开备忘录
+        }
+      }
+
+      // 回退 2)：扫描公开备忘录（最多 5 页），查找 #menu-pub 且匹配 publicId
+      try {
+        let token: string | undefined = undefined;
+        let found: Menu | null = null;
+        let loops = 0;
+        while (loops < 5) {
+          const resp = (await memoStore.fetchMemos({ pageToken: token, pageSize: 50 })) || { memos: [], nextPageToken: "" };
+          const { memos, nextPageToken } = resp as any;
+          for (const m of memos || []) {
+            const c = m.content || "";
+            if (!/#menu-pub\b/.test(c)) continue;
+            let parsed = parseMenuFromMemoContent(c);
+            if (!parsed) {
+              parsed = await parseMenuFromAttachments(m);
+            }
+            if (parsed && parsed.publicId === publicId && parsed.allowOrder) {
+              found = parsed;
+              if (m?.name) setSourceMemoName(m.name);
+              break;
+            }
+          }
+          if (found || !nextPageToken) break;
+          token = nextPageToken;
+          loops++;
+        }
+        if (found) {
+          setMenu(found);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+
+      // 3) 留给本地存储的回退逻辑由下一个 useEffect 执行
+    })();
+  }, [publicId, searchParams]);
 
   // ESC 键关闭大图
   useEffect(() => {
@@ -163,16 +334,46 @@ const PublicMenuOrder = () => {
 
       const content = lines.join("\n");
 
-      // 创建公开的订单 Memo
-      await memoStore.createMemo({
-        memo: {
-          content,
-          visibility: Visibility.PUBLIC, // 公开可见
-        },
-        memoId: "",
-        validateOnly: false,
-        requestId: "",
-      });
+      // 创建公开的订单 Memo（优先使用登录态；失败则走匿名服务端兜底）
+      let createdOk = false;
+      try {
+        await memoStore.createMemo({
+          memo: {
+            content,
+            visibility: Visibility.PUBLIC, // 公开可见
+          },
+          memoId: "",
+          validateOnly: false,
+          requestId: "",
+        });
+        createdOk = true;
+      } catch (e) {
+        createdOk = false;
+      }
+
+      if (!createdOk) {
+      const memoName = sourceMemoName || searchParams.get("memo") || "";
+      const body = {
+        memo: memoName,
+        publicId: menu.publicId,
+        customerName: customerName.trim(),
+        note: orderNote.trim(),
+        items: selectedItemsList.map(({ item, quantity }) => ({ itemId: item.id, name: item.name, quantity })),
+      };
+        const resp = await fetch("/api/public/menu-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const ct = resp.headers.get("content-type") || "";
+        if (!resp.ok || !ct.includes("application/json")) {
+          throw new Error(`anonymous order failed: ${resp.status}`);
+        }
+        const data = await resp.json().catch(() => ({}));
+        if (!data || typeof data.name !== "string") {
+          throw new Error("anonymous order response invalid");
+        }
+      }
 
       setOrderId(orderNum);
       setOrderSubmitted(true);

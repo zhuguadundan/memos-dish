@@ -125,7 +125,11 @@ func (s *APIV1Service) RegisterGateway(ctx context.Context, echoServer *echo.Ech
 
     // 自定义测试 webhook 端点应优先于通配符路由注册，避免被 /api/v1/* 吞掉
     echoServer.POST("/api/v1/webhooks:test", s.handleTestWebhook)
+    // 匿名下单：公共点菜下单入口（挂载到 gwGroup 以复用 CORS 等中间件）
+    gwGroup.POST("/api/public/menu-order", s.handlePublicMenuOrder)
 
+    // 公开菜单查询：根据 publicId（可选 memo 资源名）获取公开菜单定义
+    gwGroup.GET("/api/public/menu", s.handlePublicMenuGet)
     gwGroup.Any("/api/v1/*", handler)
     gwGroup.Any("/file/*", handler)
 
