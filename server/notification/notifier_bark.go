@@ -25,9 +25,11 @@ func sendBark(ctx context.Context, base string, memo *v1pb.Memo, activity string
     if err != nil {
         return err
     }
+    // 点菜订单：设置更贴近业务的标题与精简正文
     title := activityTitle(activity)
     body := memo.GetSnippet()
-    if sum, ok := buildOrderText(memo.GetContent()); ok {
+    if sum, ok := buildOrderSummary(memo.GetContent()); ok {
+        title = "点菜订单"
         body = sum
     }
     if body == "" {

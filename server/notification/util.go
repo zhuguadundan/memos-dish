@@ -93,6 +93,78 @@ func activityTitle(activity string) string {
     }
 }
 
+// buildOrderSummary 从 memo 内容提取点菜关键信息（点菜人、时间、菜品），返回精简文本。
+// 仅当内容包含 #order 且解析到至少一条菜品时返回 ok=true。
+func buildOrderSummary(content string) (text string, ok bool) {
+    if !strings.Contains(content, "#order") {
+        return "", false
+    }
+    lines := strings.Split(content, "\n")
+    nameRe := regexp.MustCompile(`^\s*点菜人[:：]\s*(.+?)\s*$`)
+    timeRe := regexp.MustCompile(`^\s*时间[:：]\s*(.+?)\s*$`)
+    oldRe := regexp.MustCompile(`^\s*-\s*name:\"([^\"]+)\"\s+qty:(\d+)`)
+    newRe := regexp.MustCompile(`^\s*-\s*(.+?)\s*[×xX*]\s*(\d+)`)
+
+    customer := ""
+    orderedAt := ""
+    type item struct{ name string; qty int }
+    var items []item
+
+    for _, l := range lines {
+        l = strings.TrimSpace(l)
+        if l == "" {
+            continue
+        }
+        if customer == "" {
+            if m := nameRe.FindStringSubmatch(l); len(m) == 2 {
+                customer = strings.TrimSpace(m[1])
+                continue
+            }
+        }
+        if orderedAt == "" {
+            if m := timeRe.FindStringSubmatch(l); len(m) == 2 {
+                orderedAt = strings.TrimSpace(m[1])
+                continue
+            }
+        }
+        if m := oldRe.FindStringSubmatch(l); len(m) == 3 {
+            q, _ := strconv.Atoi(m[2])
+            items = append(items, item{name: strings.TrimSpace(m[1]), qty: q})
+            continue
+        }
+        if m := newRe.FindStringSubmatch(l); len(m) == 3 {
+            q, _ := strconv.Atoi(m[2])
+            items = append(items, item{name: strings.TrimSpace(m[1]), qty: q})
+            continue
+        }
+    }
+    if len(items) == 0 {
+        return "", false
+    }
+    var b strings.Builder
+    if customer != "" {
+        b.WriteString("点菜人：")
+        b.WriteString(customer)
+        b.WriteString("\n")
+    }
+    if orderedAt != "" {
+        b.WriteString("时间：")
+        b.WriteString(orderedAt)
+        b.WriteString("\n")
+    }
+    b.WriteString("菜品：\n")
+    limit := len(items)
+    if limit > 20 { limit = 20 }
+    for i := 0; i < limit; i++ {
+        it := items[i]
+        b.WriteString(fmt.Sprintf("- %s × %d\n", it.name, it.qty))
+    }
+    if len(items) > limit {
+        b.WriteString(fmt.Sprintf("... 其余 %d 项\n", len(items)-limit))
+    }
+    return b.String(), true
+}
+
 // buildOrderText 解析 memo 内容中的点餐格式，构建简明文本；若不匹配点餐格式返回 ok=false。
 // 支持两种格式：
 // 1) - name:"菜名" qty:1 price:25

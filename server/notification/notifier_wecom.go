@@ -34,9 +34,9 @@ func sendWeCom(ctx context.Context, url string, memo *v1pb.Memo, activity string
         return err
     }
     title := activityTitle(activity)
-    // 若为点餐格式，优先构造订单摘要，否则使用 snippet
-    if body, ok := buildOrderText(memo.GetContent()); ok {
-        text := fmt.Sprintf("%s\n%s", title, body)
+    // 若为点餐格式，优先构造订单精简文本（仅点菜人/时间/菜品），不再附加 Memo Created 标题
+    if body, ok := buildOrderSummary(memo.GetContent()); ok {
+        text := body
         payload := weComTextPayload{
             MsgType: "text",
             Text:    weComContent{Content: text},
