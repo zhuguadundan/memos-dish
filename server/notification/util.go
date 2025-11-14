@@ -252,3 +252,14 @@ func buildOrderText(content string) (text string, ok bool) {
     return b.String(), true
 }
 
+func isOrderMemo(content string) bool {
+    return strings.Contains(content, "#order")
+}
+
+func isMenuMemo(content string) bool {
+    if strings.Contains(content, "#menu-pub") {
+        return true
+    }
+    return regexp.MustCompile(`#menu:([A-Za-z0-9_-]+)`).MatchString(content)
+}
+

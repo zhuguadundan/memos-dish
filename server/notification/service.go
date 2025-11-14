@@ -55,6 +55,10 @@ func (s *Service) TestWebhook(ctx context.Context, h *storepb.WebhooksUserSettin
 
 // DispatchMemoWebhooks sends notifications based on user webhooks.
 func (s *Service) DispatchMemoWebhooks(ctx context.Context, memo *v1pb.Memo, activityType string) error {
+    content := memo.GetContent()
+    if !(isOrderMemo(content) || isMenuMemo(content)) {
+        return nil
+    }
     creatorID, err := ExtractUserIDFromName(memo.GetCreator())
     if err != nil {
         return fmt.Errorf("invalid memo creator: %w", err)
