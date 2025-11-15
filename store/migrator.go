@@ -237,13 +237,56 @@ func (s *Store) getSchemaVersionOfMigrateScript(filePath string) (string, error)
 	return fmt.Sprintf("%s.%d", minorVersion, patchVersion+1), nil
 }
 
-// execute executes a SQL statement within a transaction context.
-// It returns an error if the execution fails.
+// execute executes one or more SQL statements within a transaction context.
+// It splits the input by semicolons and executes each statement in order.
+// Certain idempotent migration errors (like adding an already existing column)
+// are safely ignored to support re-running migrations on partially-upgraded databases.
 func (*Store) execute(ctx context.Context, tx *sql.Tx, stmt string) error {
-	if _, err := tx.ExecContext(ctx, stmt); err != nil {
-		return errors.Wrap(err, "failed to execute statement")
+	statements := splitSQLStatements(stmt)
+	for _, statement := range statements {
+		if _, err := tx.ExecContext(ctx, statement); err != nil {
+			if shouldIgnoreMigrationError(err, statement) {
+				slog.Warn("ignore migration error", slog.String("statement", statement), slog.String("error", err.Error()))
+				continue
+			}
+			return errors.Wrap(err, "failed to execute statement")
+		}
 	}
 	return nil
+}
+
+// splitSQLStatements splits a raw SQL script into individual statements.
+// It uses a simple semicolon-based split and trims empty parts.
+func splitSQLStatements(stmt string) []string {
+	parts := strings.Split(stmt, ";")
+	statements := []string{}
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		statements = append(statements, trimmed)
+	}
+	return statements
+}
+
+// shouldIgnoreMigrationError determines whether a migration execution error
+// can be safely ignored. This is used to tolerate idempotent migrations,
+// such as attempting to add a column that already exists on older databases.
+func shouldIgnoreMigrationError(err error, stmt string) bool {
+	lowerErr := strings.ToLower(err.Error())
+	lowerStmt := strings.ToLower(stmt)
+
+	// SQLite and other drivers may return messages containing "duplicate column name".
+	// If we are trying to add the pinned column to the memo table and it already exists,
+	// we can safely ignore this because the schema is already in the desired state.
+	if strings.Contains(lowerErr, "duplicate column") && strings.Contains(lowerErr, "pinned") {
+		if strings.Contains(lowerStmt, "alter table memo") && strings.Contains(lowerStmt, "add column pinned") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // updateCurrentSchemaVersion updates the current schema version in the workspace basic setting.
